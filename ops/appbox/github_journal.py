@@ -65,11 +65,12 @@ class GitHub:
             "X-GitHub-Api-Version": "2026-03-10",
         }
 
-    def get(self, path):
+    def get(self, path, *, version=None):
         self.next_page = None
+        headers = self.headers if version is None else {**self.headers, "X-GitHub-Api-Version": version}
         try:
             with self.opener.open(
-                urllib.request.Request("https://api.github.com" + path, headers=self.headers),
+                urllib.request.Request("https://api.github.com" + path, headers=headers),
                 timeout=20,
             ) as response:
                 link = re.search(r'<([^>]+)>; rel="next"', response.headers.get("Link", ""))
@@ -185,7 +186,8 @@ def validated_plan(entry, repositories):
 def check_fix(api, plan):
     repo, sha = plan["repository"], plan["sha"]
     root = "/repos/" + repo
-    status, pr = api.get(f"{root}/pulls/{plan['pr']}")
+    # The 2026 API omits the merge commit SHA. Use the version that exposes it.
+    status, pr = api.get(f"{root}/pulls/{plan['pr']}", version="2022-11-28")
     if status != 200:
         return {**plan, "merged": False, "ci": "pr_unavailable", "checks": []}
     merged = pr.get("merged") is True and pr.get("merge_commit_sha") == sha

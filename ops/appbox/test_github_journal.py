@@ -38,14 +38,17 @@ class FixtureGitHub:
             "head_branch": "main",
         }
 
-    def get(self, path):
+    def get(self, path, *, version=None):
         self.requests.append(path)
         if path.endswith("/pulls/3"):
-            return 200, {
+            response = {
                 "state": "closed" if self.merged else "open",
-                "merged": self.merged, "merge_commit_sha": COMMIT,
+                "merged": self.merged,
                 "head": {"sha": COMMIT}, "base": {"ref": "main"},
             }
+            if version == "2022-11-28":
+                response["merge_commit_sha"] = COMMIT
+            return 200, response
         if path == "/repos/sample/vendor/security-advisories/" + GHSA:
             return 200, {"ghsa_id": GHSA, "cve_id": CVE}
         if "/code-scanning/analyses?" in path:
