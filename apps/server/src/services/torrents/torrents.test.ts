@@ -194,6 +194,16 @@ describe('окно просмотра', () => {
     expect(streamWindowOf(80 * 1024 * MIB, 60 * 60)).toBe(1024 * MIB)
   })
 
+  it('applies the profile window at the same bitrate and keeps it bounded', () => {
+    expect(streamWindowOf(4500 * MIB, 45 * 60, 10)).toBe(1000 * MIB)
+    expect(streamWindowOf(80 * 1024 * MIB, 60 * 60, 10)).toBe(
+      Math.round((1024 * MIB * 10) / 3),
+    )
+    expect(streamWindowOf(4500 * MIB, null, 10)).toBe(
+      Math.round((128 * MIB * 10) / 3),
+    )
+  })
+
   it('без длительности — окно по умолчанию', () => {
     expect(streamWindowOf(4500 * MIB, null)).toBe(128 * MIB)
   })

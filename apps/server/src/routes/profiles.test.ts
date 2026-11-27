@@ -307,6 +307,7 @@ describe('настройки плеера', () => {
 
     expect(fresh.player).toEqual({
       autoNext: true,
+      streamBufferMinutes: 3,
       subtitleSize: 'm',
       subtitleBackground: 'box',
       subtitlePosition: 'default',
@@ -320,7 +321,13 @@ describe('настройки плеера', () => {
 
     await select(tv, viewer.id)
 
-    const first = await putPlayer(tv, { autoNext: false })
+    const first = await putPlayer(tv, {
+      autoNext: false,
+      streamBufferMinutes: 10,
+    })
+    expect((await putPlayer(tv, { streamBufferMinutes: 60 })).statusCode).toBe(
+      400,
+    )
     const second = await putPlayer(tv, {
       subtitleSize: 'l',
       subtitlePosition: 'higher',
@@ -330,6 +337,7 @@ describe('настройки плеера', () => {
     expect(first.statusCode).toBe(200)
     expect(second.json()).toEqual({
       autoNext: false,
+      streamBufferMinutes: 10,
       subtitleSize: 'l',
       subtitleBackground: 'box',
       subtitlePosition: 'higher',

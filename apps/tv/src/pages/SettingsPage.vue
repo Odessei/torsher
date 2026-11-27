@@ -12,19 +12,20 @@ import {
   setScreensaverMinutes,
 } from '../composables/useScreensaver.ts'
 import { useFocus } from '../focus/index.ts'
+import { STREAM_BUFFER_OPTIONS } from '../lib/player.ts'
+import { session, updatePlayerSettings } from '../session.ts'
 import { SCREENSAVER_OPTIONS } from '../lib/screensaver.ts'
 
 /**
  * Настройки витрины, как экран настроек у Apple TV: строки «название — значение»,
- * выбор в правой панели. Сейчас здесь настройки этого устройства; настройки
- * сервера и профилей — в панели управления.
+ * выбор в правой панели.
  */
 const { t } = useI18n()
 const focus = useFocus()
 
 const RAIL_SECTION = 'rail-settings'
 
-type Setting = 'screensaver' | 'speedtest'
+type Setting = 'screensaver' | 'speedtest' | 'streamBuffer'
 
 const panel = ref<Setting>()
 let panelOpener: HTMLElement | undefined
@@ -43,6 +44,17 @@ const options = computed<PanelOption[]>(() =>
   })),
 )
 
+const streamBuffer = computed(
+  () => session.profile?.player.streamBufferMinutes,
+)
+const bufferOptions = computed<PanelOption[]>(() =>
+  STREAM_BUFFER_OPTIONS.map(minutes => ({
+    id: String(minutes),
+    label: t('player.settings.bufferMinutes', { minutes }),
+    selected: minutes === streamBuffer.value,
+  })),
+)
+
 function openPanel(id: Setting) {
   panelOpener = focus.current() ?? undefined
   panel.value = id
@@ -58,7 +70,16 @@ function closePanel() {
 }
 
 function choose(id: string) {
-  setScreensaverMinutes(Number(id))
+  if (panel.value === 'streamBuffer') {
+    void updatePlayerSettings({
+      streamBufferMinutes: STREAM_BUFFER_OPTIONS.find(
+        minutes => String(minutes) === id,
+      ),
+    })
+  }
+  else {
+    setScreensaverMinutes(Number(id))
+  }
   closePanel()
 }
 </script>
@@ -109,6 +130,30 @@ function choose(id: string) {
         </span>
         <AppIcon name="chevronRight" class="setting__chevron" />
       </button>
+      <template v-if="streamBuffer !== undefined">
+        <h2 class="settings__group settings__group--player">
+          {{ t("settings.playerProfile") }}
+        </h2>
+        <button
+          v-focusable
+          class="setting"
+          type="button"
+          @click="openPanel('streamBuffer')"
+        >
+          <span class="setting__text">
+            <span class="setting__name">{{
+              t("player.settings.streamBuffer")
+            }}</span>
+            <span class="setting__hint">{{
+              t("player.settings.streamBufferHint")
+            }}</span>
+          </span>
+          <span class="setting__value">{{
+            t("player.settings.bufferMinutes", { minutes: streamBuffer })
+          }}</span>
+          <AppIcon name="chevronRight" class="setting__chevron" />
+        </button>
+      </template>
     </FocusSection>
 
     <AppRail
@@ -122,6 +167,13 @@ function choose(id: string) {
       v-if="panel === 'screensaver'"
       :title="t('settings.screensaver')"
       :options="options"
+      @select="choose"
+      @close="closePanel"
+    />
+    <OptionsPanel
+      v-if="panel === 'streamBuffer'"
+      :title="t('player.settings.streamBuffer')"
+      :options="bufferOptions"
       @select="choose"
       @close="closePanel"
     />
@@ -142,6 +194,10 @@ function choose(id: string) {
   margin: 0;
   font-size: var(--font-size-m);
   font-weight: 600;
+}
+
+.settings__group--player {
+  margin-top: var(--space-5);
 }
 
 .setting--connection {

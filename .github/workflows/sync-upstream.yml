@@ -1,0 +1,50 @@
+name: Sync upstream Torsher
+
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'Odessei/torsher' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check upstream and open a merge PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags https://github.com/torsher-app/torsher.git refs/heads/main
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+            echo "Upstream is already included in main."
+            exit 0
+          fi
+
+          endpoint="repos/$GITHUB_REPOSITORY/pulls"
+          existing=$(gh api --method GET "$endpoint" -f state=open -f base=main -f head=torsher-app:main --jq '.[0].html_url // ""')
+          if [ -n "$existing" ]; then
+            echo "Upstream PR is open at $existing"
+            exit 0
+          fi
+
+          gh api --method POST "$endpoint" \
+            -f title='Sync Torsher upstream' \
+            -f base=main -f head=torsher-app:main \
+            -F maintainer_can_modify=false \
+            -f body='Review upstream changes and resolve any conflicts against the Odessei fork. Approve the CI workflow if prompted. After CI passes, use a merge commit so the upstream history is preserved.' \
+            --jq .html_url

@@ -514,6 +514,7 @@
     "changeServer": "Change server"
   },
   "settings": {
+    "playerProfile": "Profile playback",
     "title": "Settings",
     "device": "This device",
     "deviceNote": "Stored on this TV and the same for every profile",
@@ -694,6 +695,9 @@
         "dimmed": "Dimmed"
       },
       "autoNext": "Autoplay next",
+      "streamBuffer": "Torrent buffer",
+      "bufferMinutes": "{minutes} min",
+      "streamBufferHint": "How much video to load ahead. Applies the next time you play from a torrent and may use more cache space.",
       "on": "On",
       "off": "Off",
       "link": "Video link",

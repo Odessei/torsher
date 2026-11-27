@@ -4,7 +4,7 @@ import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFocus } from '../../focus/index.ts'
 import { copyText } from '../../lib/clipboard.ts'
-import { PLAYBACK_SPEEDS } from '../../lib/player.ts'
+import { PLAYBACK_SPEEDS, STREAM_BUFFER_OPTIONS } from '../../lib/player.ts'
 import FocusSection from '../FocusSection.vue'
 import PanelRow from './PanelRow.vue'
 import PlayerPanel from './PlayerPanel.vue'
@@ -17,6 +17,7 @@ type View
     | 'subtitlePosition'
     | 'subtitleColor'
     | 'autoNext'
+    | 'streamBuffer'
     | 'link'
 
 interface Option {
@@ -90,6 +91,14 @@ const rows = computed(() =>
         props.settings.autoNext ? 'player.settings.on' : 'player.settings.off',
       ),
     },
+    {
+      id: 'streamBuffer' as const,
+      label: t('player.settings.streamBuffer'),
+      detail: t('player.settings.bufferMinutes', {
+        minutes: props.settings.streamBufferMinutes,
+      }),
+      visible: props.settings.streamBufferMinutes !== undefined,
+    },
     ...(props.link
       ? [
           {
@@ -135,6 +144,12 @@ const options = computed<Option[]>(() => {
         id: color,
         label: t(`player.settings.colors.${color}`),
         selected: color === (settings.subtitleColor ?? 'default'),
+      }))
+    case 'streamBuffer':
+      return STREAM_BUFFER_OPTIONS.map(minutes => ({
+        id: String(minutes),
+        label: t('player.settings.bufferMinutes', { minutes }),
+        selected: minutes === settings.streamBufferMinutes,
       }))
     case 'autoNext':
       return [true, false].map(on => ({
@@ -182,6 +197,13 @@ function choose(id: string) {
   }
   else if (view.value === 'autoNext') {
     emit('update', { autoNext: id === 'true' })
+  }
+  else if (view.value === 'streamBuffer') {
+    emit('update', {
+      streamBufferMinutes: STREAM_BUFFER_OPTIONS.find(
+        minutes => String(minutes) === id,
+      ),
+    })
   }
 
   void back()
@@ -239,6 +261,9 @@ defineExpose({ back })
       </template>
 
       <template v-else>
+        <p v-if="view === 'streamBuffer'" class="settings__note">
+          {{ t("player.settings.streamBufferHint") }}
+        </p>
         <PanelRow
           v-for="option in options"
           :key="option.id"

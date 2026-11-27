@@ -8937,6 +8937,7 @@ export interface HistoryMatchConflictInput {
 
 export interface PlayerSettingsInput {
   autoNext: boolean;
+  streamBufferMinutes?: 1 | 3 | 5 | 10 | 15;
   subtitleSize: "s" | "m" | "l";
   subtitleBackground: "none" | "shadow" | "box";
   subtitlePosition?: "default" | "higher";
@@ -8945,6 +8946,7 @@ export interface PlayerSettingsInput {
 
 export interface UpdatePlayerSettingsInput {
   autoNext?: boolean;
+  streamBufferMinutes?: 1 | 3 | 5 | 10 | 15;
   subtitleSize?: "s" | "m" | "l";
   subtitleBackground?: "none" | "shadow" | "box";
   subtitlePosition?: "default" | "higher";
@@ -19346,6 +19348,7 @@ export interface HistoryMatchConflict {
 
 export interface PlayerSettings {
   autoNext: boolean;
+  streamBufferMinutes?: 1 | 3 | 5 | 10 | 15;
   subtitleSize: "s" | "m" | "l";
   subtitleBackground: "none" | "shadow" | "box";
   subtitlePosition?: "default" | "higher";
@@ -19354,6 +19357,7 @@ export interface PlayerSettings {
 
 export interface UpdatePlayerSettings {
   autoNext?: boolean;
+  streamBufferMinutes?: 1 | 3 | 5 | 10 | 15;
   subtitleSize?: "s" | "m" | "l";
   subtitleBackground?: "none" | "shadow" | "box";
   subtitlePosition?: "default" | "higher";

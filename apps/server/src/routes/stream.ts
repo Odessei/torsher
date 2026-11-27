@@ -21,6 +21,7 @@ import {
 import { engineFailureOf, sendEngineError } from './engineResponses.ts'
 import { titleAllowedCached } from '../services/profiles/access.ts'
 import { sessionAccessible } from '../services/profiles/playbackAccess.ts'
+import { streamBufferMinutesForProfile } from '../services/profiles/index.ts'
 import { verifySession } from '../services/users/session.ts'
 
 // Заголовки ответа движка, которые нужны плееру для перемотки
@@ -198,7 +199,11 @@ export const streamRoutes: FastifyPluginAsyncZod = async (app) => {
           fileIndex,
           request.headers.range,
           controller.signal,
-          streamWindowFor(torrent, fileIndex),
+          streamWindowFor(
+            torrent,
+            fileIndex,
+            streamBufferMinutesForProfile(request.profileId),
+          ),
         )
       }
       catch (err) {

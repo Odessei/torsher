@@ -3,6 +3,7 @@ import {
   posterRatingSources,
   profileColors,
   profileLanguages,
+  streamBufferOptions,
   subtitleBackgrounds,
   subtitleColors,
   subtitlePositions,
@@ -25,6 +26,9 @@ export const playerSettings = z
   .object({
     // Следующая серия запускается сама после отсчёта
     autoNext: z.boolean(),
+    streamBufferMinutes: z
+      .union(streamBufferOptions.map(value => z.literal(value)))
+      .optional(),
     subtitleSize: z.enum(subtitleSizes),
     subtitleBackground: z.enum(subtitleBackgrounds),
     subtitlePosition: z.enum(subtitlePositions).optional(),

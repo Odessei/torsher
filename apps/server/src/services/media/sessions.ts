@@ -25,7 +25,11 @@ import {
   libraryProbeKey,
   libraryRevisionMatches,
 } from '../library/playedSource.ts'
-import type { DownloadedSubtitle, Torrent } from '../../db/schema.ts'
+import type {
+  DownloadedSubtitle,
+  PlayerSettings,
+  Torrent,
+} from '../../db/schema.ts'
 import type {
   AudioPreference,
   DeviceProfile,
@@ -147,6 +151,7 @@ export interface SessionInput {
   torrent?: Torrent
   library?: LibrarySource
   addonMedia?: AddonMedia
+  streamBufferMinutes?: PlayerSettings['streamBufferMinutes']
   previousAddonSession?: PlaybackSession
   addonSubtitles?: boolean
   fileIndex: number
@@ -326,7 +331,11 @@ function fileSizeOf(session: PlaybackSession) {
  * Окно просмотра для прямого потока файла: по длительности из пробы открытой
  * сессии этого файла, без неё — окно по умолчанию.
  */
-export function streamWindowFor(torrent: Torrent, fileIndex: number) {
+export function streamWindowFor(
+  torrent: Torrent,
+  fileIndex: number,
+  minutes: PlayerSettings['streamBufferMinutes'],
+) {
   let duration: number | null = null
 
   for (const session of sessions.values()) {
@@ -340,7 +349,11 @@ export function streamWindowFor(torrent: Torrent, fileIndex: number) {
     }
   }
 
-  return streamWindowOf(torrent.files?.[fileIndex]?.size ?? 0, duration)
+  return streamWindowOf(
+    torrent.files?.[fileIndex]?.size ?? 0,
+    duration,
+    minutes,
+  )
 }
 
 // Сессию могли закрыть, пока шла проба: дальше готовить её незачем
@@ -889,7 +902,11 @@ async function prepare(
     if (!isOpen(session))
       return
 
-    const window = streamWindowOf(fileSizeOf(session), media.duration)
+    const window = streamWindowOf(
+      fileSizeOf(session),
+      media.duration,
+      input.streamBufferMinutes,
+    )
 
     session.hls = new HlsTranscode(
       join(config.transcodesPath, session.id),

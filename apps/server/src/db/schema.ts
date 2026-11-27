@@ -121,10 +121,14 @@ export const subtitleBackgrounds = ['none', 'shadow', 'box'] as const
 export const subtitlePositions = ['default', 'higher'] as const
 export const subtitleColors = ['default', 'dimmed'] as const
 
+export const streamBufferOptions = [1, 3, 5, 10, 15] as const
+export const defaultStreamBufferMinutes = 3
+
 /** Настройки плеера профиля; чего нет в записи — умолчания сервиса профилей */
 export interface PlayerSettings {
   /** Следующая серия запускается сама после отсчёта */
   autoNext: boolean
+  streamBufferMinutes: (typeof streamBufferOptions)[number]
   subtitleSize: (typeof subtitleSizes)[number]
   subtitleBackground: (typeof subtitleBackgrounds)[number]
   subtitlePosition: (typeof subtitlePositions)[number]
