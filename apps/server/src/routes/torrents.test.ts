@@ -24,7 +24,11 @@ import {
   sampleTorrentFile,
 } from '../services/engine/fixtures/index.ts'
 import { signToken } from '../utils/token.ts'
-import { defaultProfile } from '../services/profiles/index.ts'
+import {
+  createProfile,
+  defaultProfile,
+  updatePlayerSettings,
+} from '../services/profiles/index.ts'
 import * as mediaProbe from '../services/media/probe.ts'
 import * as mediaCues from '../services/media/cueCache.ts'
 
@@ -956,6 +960,33 @@ describe('поток', () => {
     expect(response.headers['content-length']).toBe('5')
     expect(response.headers['accept-ranges']).toBe('bytes')
     expect(response.headers['content-type']).toBe('video/x-matroska')
+  })
+
+  it('uses the profile window for a signed 206 Range request', async () => {
+    const torrent = insertTorrent()
+    const viewer = createProfile({
+      name: 'Ten-minute buffer',
+      color: 'slate',
+      language: null,
+      ageLimit: null,
+      posterRatings: [],
+    })
+    updatePlayerSettings(viewer.id, { streamBufferMinutes: 10 })
+    engine({
+      [`GET /torrents/${INFO_HASH}/files/0/stream`]: (url, init) => {
+        expect(init.headers).toEqual({ Range: 'bytes=0-0' })
+        expect(url.searchParams.get('window')).toBe(
+          String(Math.round((128 * 1024 * 1024 * 10) / 3)),
+        )
+        return new Response('x', { status: 206 })
+      },
+    })
+    const token = signToken('owner', 'stream', 0, viewer.id)
+    const response = await app.inject({
+      url: `/api/stream/${torrent.id}/0?token=${token}`,
+      headers: { range: 'bytes=0-0' },
+    })
+    expect(response.statusCode).toBe(206)
   })
 
   it('принимает и сессию из cookie', async () => {

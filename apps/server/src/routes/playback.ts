@@ -1,4 +1,8 @@
 import {
+  getProfile,
+  streamBufferMinutesForProfile,
+} from '../services/profiles/index.ts'
+import {
   addonSubtitleTrack,
   addonSubtitleTracks,
   addonSubtitleView,
@@ -120,7 +124,6 @@ import {
 } from '../services/media/index.ts'
 import { fileProgressId } from '../services/library/index.ts'
 import { clearMovieWatchlist } from '../services/mine/index.ts'
-import { getProfile } from '../services/profiles/index.ts'
 import {
   getTitleProgress,
   hasProgress,
@@ -1117,6 +1120,7 @@ export const playbackRoutes: FastifyPluginAsyncZod = async (app) => {
             ? initialSelection
             : undefined,
         ...source,
+        streamBufferMinutes: streamBufferMinutesForProfile(profileId),
         addonSubtitles: request.body.addonSubtitles,
         fileName,
         device,

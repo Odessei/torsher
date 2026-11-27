@@ -15,6 +15,7 @@ import { episodeFile, knownTorrent } from './library.ts'
 
 const PLAYER: PlayerSettings = {
   autoNext: true,
+  streamBufferMinutes: 3,
   subtitleSize: 'm',
   subtitleBackground: 'box',
   subtitlePosition: 'default',

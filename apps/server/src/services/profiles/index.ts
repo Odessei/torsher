@@ -4,10 +4,12 @@ import { movePersonalSpace } from '../transfer/personalSpace.ts'
 import { and, asc, desc, eq, inArray, lt, notExists, sql } from 'drizzle-orm'
 import { getDb } from '../../db/index.ts'
 import {
+  defaultStreamBufferMinutes,
   followProfiles,
   follows,
   profiles,
   profileTitles,
+  streamBufferOptions,
   titleProgress,
   users,
   watchStates,
@@ -106,6 +108,7 @@ export function createProfile(input: ProfileInput & { pinHash?: string }) {
 
 export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
   autoNext: true,
+  streamBufferMinutes: defaultStreamBufferMinutes,
   subtitleSize: 'm',
   subtitleBackground: 'box',
   subtitlePosition: 'default',
@@ -113,7 +116,21 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
 }
 
 export function playerSettingsOf(row: Pick<Profile, 'player'>): PlayerSettings {
-  return { ...DEFAULT_PLAYER_SETTINGS, ...row.player }
+  const streamBufferMinutes = streamBufferOptions.find(
+    value => value === row.player?.streamBufferMinutes,
+  )
+  return {
+    ...DEFAULT_PLAYER_SETTINGS,
+    ...row.player,
+    streamBufferMinutes: streamBufferMinutes ?? defaultStreamBufferMinutes,
+  }
+}
+
+export function streamBufferMinutesForProfile(id: string) {
+  const profile = getProfile(id)
+  return profile
+    ? playerSettingsOf(profile).streamBufferMinutes
+    : defaultStreamBufferMinutes
 }
 
 /** Меняет только переданные настройки, остальные остаются как были */

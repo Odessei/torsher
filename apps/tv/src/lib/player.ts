@@ -600,6 +600,8 @@ function formatOneDecimal(value: number, locale: string) {
   return value.toFixed(1)
 }
 
+export const STREAM_BUFFER_OPTIONS = [1, 3, 5, 10, 15] as const
+
 export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
 
 // Плашка «Следующая серия» — за столько секунд до конца серии

@@ -1,5 +1,6 @@
 import type { CueCluster } from '../media/matroska.ts'
-import type { TorrentFileEntry } from '../../db/schema.ts'
+import type { PlayerSettings, TorrentFileEntry } from '../../db/schema.ts'
+import { defaultStreamBufferMinutes } from '../../db/schema.ts'
 
 /** Смещение файла от начала раздачи: файлы, включая выравнивание, идут подряд */
 export function fileOffsetOf(files: TorrentFileEntry[], index: number) {
@@ -234,19 +235,22 @@ export function resumePosition(position: number, duration: number | null) {
 const MIB = 1024 * 1024
 // Запас впереди позиции при просмотре: столько видео докачивается вперёд,
 // пока поток открыт. Без длительности — окно среднего размера
-const STREAM_AHEAD_SECONDS = 180
 const MIN_STREAM_WINDOW = 64 * MIB
 const MAX_STREAM_WINDOW = 1024 * MIB
 const DEFAULT_STREAM_WINDOW = 128 * MIB
 
-/** Окно просмотра в байтах: три минуты видео по среднему битрейту файла */
-export function streamWindowOf(size: number, duration: number | null) {
-  if (!duration || duration <= 0 || size <= 0)
-    return DEFAULT_STREAM_WINDOW
+/** Окно просмотра в байтах по среднему битрейту и настройке профиля. */
+export function streamWindowOf(
+  size: number,
+  duration: number | null,
+  minutes: PlayerSettings['streamBufferMinutes'] = defaultStreamBufferMinutes,
+) {
+  const scale = minutes / defaultStreamBufferMinutes
+  const cap = MAX_STREAM_WINDOW * scale
+  const window
+    = duration && duration > 0 && size > 0
+      ? (size / duration) * minutes * 60
+      : DEFAULT_STREAM_WINDOW * scale
 
-  const window = (size / duration) * STREAM_AHEAD_SECONDS
-
-  return Math.round(
-    Math.min(MAX_STREAM_WINDOW, Math.max(MIN_STREAM_WINDOW, window)),
-  )
+  return Math.round(Math.min(cap, Math.max(MIN_STREAM_WINDOW, window)))
 }
