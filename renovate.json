@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": [
+    "docker-compose",
+    "custom.regex",
+    "npm",
+    "gomod",
+    "gradle",
+    "gradle-wrapper",
+    "dockerfile"
+  ],
+  "pinDigests": true,
+  "separateMinorPatch": true,
+  "prHourlyLimit": 2,
+  "automerge": false,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update tagged and pinned image references in Appbox Compose JSON",
+      "managerFilePatterns": [
+        "/^ops\\/appbox\\/compose[^/]*\\.json$/"
+      ],
+      "matchStrings": [
+        "\"image\"\\s*:\\s*\"(?<depName>[^\\s\"@]+):(?<currentValue>[^\\s\":@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "labels": [
+        "appbox",
+        "security-review"
+      ]
+    }
+  ]
+}

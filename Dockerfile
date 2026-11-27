@@ -1,12 +1,9 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=24.21.0
-ARG GO_VERSION=1.24
-
 # Торрент-движок (engine/, Go): собирается на платформе сборщика под целевую
 # архитектуру без cgo — статический бинарник, эмуляция не нужна. Лицензии
 # всех вошедших в него Go-модулей кладутся рядом
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-bookworm AS engine
+FROM --platform=$BUILDPLATFORM golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac AS engine
 ARG TARGETARCH
 WORKDIR /src
 COPY engine/go.mod engine/go.sum ./
@@ -28,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # статика, а зависимости сервера ставятся под целевую архитектуру флагами
 # pnpm (better-sqlite3 и argon2 приходят готовыми бинарниками), поэтому
 # эмуляция чужой архитектуры при сборке не нужна
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     SKIP_INSTALL_SIMPLE_GIT_HOOKS=1 \
     CI=true
@@ -79,7 +76,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 # движку. Без секрета (форк, локальная сборка) файла нет. Содержимое секрета
 # не входит в ключ кэша, поэтому CI собирает эту стадию без кэша. Секрет
 # монтируется с правами 0400 root, а сервер работает от PUID: права задаём сами
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS tmdb-app-key
+FROM --platform=$BUILDPLATFORM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS tmdb-app-key
 RUN --mount=type=secret,id=tmdb_app_key,required=false \
     mkdir -p /out \
  && if [ -s /run/secrets/tmdb_app_key ]; then \
@@ -88,7 +85,7 @@ RUN --mount=type=secret,id=tmdb_app_key,required=false \
 
 # trixie, а не bookworm: ffmpeg из Debian (перепаковка видео и ffprobe) там
 # 7.1, в bookworm — 5.1. Пакет Debian собран без несвободных частей
-FROM node:${NODE_VERSION}-trixie-slim
+FROM node:24.21.0-trixie-slim@sha256:173f125896c3b47ddf056734c7ea789d04595a6a08769a8f78e0df642781fb66
 
 # ca-certificates — для движка: Node несёт свои корневые сертификаты, а движок
 # на Go берёт системные (HTTPS-трекеры).

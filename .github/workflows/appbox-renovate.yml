@@ -1,0 +1,33 @@
+name: Appbox dependency updates
+
+on:
+  schedule:
+    - cron: '20 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: renovate-appbox
+  cancel-in-progress: false
+
+jobs:
+  updates:
+    if: github.repository == 'Odessei/torsher' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.3
+
+      - name: Propose dependency updates
+        env:
+          RENOVATE_TOKEN: ${{ github.token }}
+          RENOVATE_PLATFORM: github
+          RENOVATE_ONBOARDING: 'false'
+          RENOVATE_REQUIRE_CONFIG: required
+          RENOVATE_DEPENDENCY_DASHBOARD: 'false'
+          LOG_LEVEL: warn
+        run: npx --yes renovate@45.3.2 "$GITHUB_REPOSITORY"

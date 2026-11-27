@@ -58,7 +58,31 @@ const backups = computed(() => {
   }
 })
 
-const storage = computed(() => props.overview.storage)
+type DashboardStorage = OverviewResponse['storage'] & { accountQuota?: true }
+
+const storage = computed(() => props.overview.storage as DashboardStorage)
+const quotaUnits = [
+  { unit: 'terabyte', size: 1e12 },
+  { unit: 'gigabyte', size: 1e9 },
+  { unit: 'megabyte', size: 1e6 },
+  { unit: 'kilobyte', size: 1e3 },
+] as const
+
+function diskBytes(value: number | null) {
+  if (!storage.value.accountQuota || value === null)
+    return bytes(value)
+
+  const { unit, size } = quotaUnits.find(unit => value >= unit.size) ?? {
+    unit: 'byte',
+    size: 1,
+  }
+  return new Intl.NumberFormat(locale.value.replace('_', '-'), {
+    style: 'unit',
+    unit,
+    unitDisplay: 'short',
+    maximumFractionDigits: 3,
+  }).format(value / size)
+}
 const used = computed(() =>
   storage.value.total === null || storage.value.free === null
     ? null
@@ -167,7 +191,11 @@ const playback = computed(() => {
 
     <OverviewTile
       to="/settings/storage"
-      :title="t('panel.settings.nav.storage')"
+      :title="
+        storage.accountQuota
+          ? `${t('panel.settings.nav.storage')} · Appbox`
+          : t('panel.settings.nav.storage')
+      "
       :icon="HardDriveIcon"
     >
       <p
@@ -178,8 +206,8 @@ const playback = computed(() => {
           storage.total === null || storage.free === null
             ? t("panel.overview.tiles.storage.unavailable")
             : t("panel.settings.storage.disk.freeOf", {
-              free: bytes(storage.free),
-              total: bytes(storage.total),
+              free: diskBytes(storage.free),
+              total: diskBytes(storage.total),
             })
         }}
       </p>
@@ -196,8 +224,8 @@ const playback = computed(() => {
         "
         :aria-label="
           t('panel.overview.tiles.storage.label', {
-            used: bytes(used),
-            total: bytes(storage.total),
+            used: diskBytes(used),
+            total: diskBytes(storage.total),
           })
         "
       />

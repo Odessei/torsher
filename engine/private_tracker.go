@@ -262,7 +262,7 @@ func (m *privateTrackerManager) advance(a *api, t *torrent.Torrent, endpoint str
 		}
 	}
 	req := m.request(a, t, event, complete)
-	ctx, cancel := context.WithTimeout(m.ctx, tracker.DefaultTrackerAnnounceTimeout)
+	ctx, cancel := context.WithCancel(m.ctx)
 	pending := make(chan privateAnnounceResult, 1)
 	state.pending, state.cancel = pending, cancel
 	client := state.client

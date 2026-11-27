@@ -6,6 +6,7 @@ import type {
 } from './types.ts'
 import { parseRelease } from './parse.ts'
 import { isYearLike } from './rules/numbers.ts'
+import { tokenize } from './tokenize.ts'
 
 const EXTENSIONS: Record<string, FileKind> = {}
 for (const ext of [
@@ -46,8 +47,17 @@ for (const ext of ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'])
 
 const SAMPLE = /(?:^|[\s.\-_[(])(?:sample|семпл|сэмпл)(?:$|[\s.\-_\])])/i
 const EXTRA_DIRS
-  = /^(?:extras?|featurettes?|bonus(?:es)?|бонусы|доп\.?\s*материалы|дополнительные\s*материалы|trailers?|трейлеры|behind\s*the\s*scenes|deleted\s*scenes)$/i
-const EXTRA_NAME = /trailer|трейлер|featurette/i
+  = /^(?:extras?|featurettes?|bonus(?:es)?|бонусы|доп\.?\s*материалы|дополнительные\s*материалы|trailers?|трейлеры|трейлери|behind\s*the\s*scenes|deleted\s*scenes)$/i
+const EXTRA_LABEL = String.raw`(?:(?:official|официальный|офіційний)[\s._-]+)?(?:trailers?|teasers?|трейлер[ыи]?|тизер[ыи]?|featurettes?)(?:[\s._#-]*\d{1,2})?`
+const EXTRA_GROUP = new RegExp(`^${EXTRA_LABEL}$`, 'iu')
+const EXTRA_PREFIX = new RegExp(
+  String.raw`^${EXTRA_LABEL}(?:\s*:\s*|\s+-\s+)`,
+  'iu',
+)
+const EXTRA_SUFFIX = new RegExp(
+  String.raw`(?:^|[\s._|:-])${EXTRA_LABEL}(?:[\s._-]+(?:\d{3,4}p|4k|[hx]\.?26[45]|hevc|avc|web[-. ]?(?:dl|rip)|aac))*$`,
+  'iu',
+)
 const LEADING_NUMBER = /^[#№]?(\d{1,4})(?=$|[\s.\-_)\]])/
 // Число отдельным словом, но не часть `5.1` или `2.0`
 const LONE_NUMBER
@@ -74,6 +84,22 @@ function splitPath(path: string) {
     name: dot > 0 ? file.slice(0, dot) : file,
     ext: dot > 0 ? file.slice(dot + 1).toLowerCase() : '',
   }
+}
+
+/** Содержимое скобок бывает подписью группы или студии. Проверяем метку целиком. */
+function isExtraName(name: string) {
+  let plain = ''
+  let start = 0
+  for (const group of tokenize(name).groups) {
+    if (group.parent !== undefined || group.end === name.length)
+      continue
+    if (EXTRA_GROUP.test(name.slice(group.start + 1, group.end).trim()))
+      return true
+    plain += `${name.slice(start, group.start)} `
+    start = group.end + 1
+  }
+  const label = (plain + name.slice(start)).trim()
+  return EXTRA_PREFIX.test(label) || EXTRA_SUFFIX.test(label)
 }
 
 /** Сезон из ближайшей папки: `Season 1`, `Сезон 01`, `S01`, `1 сезон`. */
@@ -164,7 +190,7 @@ function kindOf(
   const kind = EXTENSIONS[ext] ?? 'other'
   if (kind !== 'video')
     return kind
-  if (dirs.some(dir => EXTRA_DIRS.test(dir.trim())) || EXTRA_NAME.test(name))
+  if (dirs.some(dir => EXTRA_DIRS.test(dir.trim())) || isExtraName(name))
     return 'extra'
   if (SAMPLE.test(name) || dirs.some(dir => /^samples?$/i.test(dir)))
     return 'sample'

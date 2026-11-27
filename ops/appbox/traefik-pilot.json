@@ -1,0 +1,29 @@
+{
+  "service": "traefik",
+  "oldVersion": "v3.7.19",
+  "oldDigest": "sha256:b7b1b31e6440de0b1f7c4e0f6cf0a0f3f004866761d30c025fe00c80daaf7d9c",
+  "candidateVersion": "v3.7.20",
+  "candidateDigest": "sha256:f454571dee2afa1fc77287d811e92ce3c4353e82802116b0622a3665322b63aa",
+  "advisories": [
+    {
+      "id": "GHSA-3rh5-223h-cpwr",
+      "severity": "HIGH",
+      "fixed": "v3.7.20",
+      "applicability": "Compress middleware required; absent from inspected application routes."
+    },
+    {
+      "id": "GHSA-42x2-976f-ph52",
+      "severity": "MEDIUM",
+      "fixed": "v3.7.20",
+      "applicability": "Review provider type and diagnostics configuration."
+    },
+    {
+      "id": "GHSA-9657-c2gv-wjpj",
+      "severity": "MEDIUM",
+      "fixed": "v3.7.20",
+      "applicability": "Review TLS termination and shared TLS options."
+    }
+  ],
+  "owner": "provider-lifecycle",
+  "decision": "pending_approval"
+}

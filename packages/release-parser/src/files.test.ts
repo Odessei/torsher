@@ -127,6 +127,28 @@ describe('matchFiles', () => {
     expect(subs).toMatchObject({ kind: 'subtitle', season: 1, episode: 4 })
   })
 
+  it.each([
+    'Street.Fighter.2026.1080p.HC.WEBRIP.MULTi.x264 (КолоДій Трейлерів).mkv',
+    'Movie.2026.1080p.x264 (Trailer Team).mkv',
+    '[Featurette Studio] Show.S02E04.1080p.mkv',
+    'Show.S02E04.1080p.x264-TrailerTeam.mkv',
+    'The.Trailer.Park.2021.1080p.mkv',
+    'Movie.2026 (Студия [Трейлер]).mkv',
+  ])('показывает видео с названием группы или тайтла %s', (path) => {
+    expect(matchFiles([{ path, size: 9 * GB }])[0]?.kind).toBe('video')
+  })
+
+  it.each([
+    'Movie.2026 (Trailer).mkv',
+    'Movie.2026 [Офіційний трейлер 2].mkv',
+    'Movie.2026.Official.Trailer.2.1080p.x264.mkv',
+    'Trailer - Movie.mp4',
+    'Movie/Трейлери/Clip.mp4',
+    'Movie/Extras/Behind the Scenes.mkv',
+  ])('отсеивает явно подписанный допматериал %s', (path) => {
+    expect(matchFiles([{ path, size: 300 * MB }])[0]?.kind).toBe('extra')
+  })
+
   it('нумерует по порядку, когда номеров нет, а число файлов совпадает с сериями', () => {
     const result = matchFiles(
       ['b.mkv', 'a.mkv', 'c.mkv'].map(path => ({

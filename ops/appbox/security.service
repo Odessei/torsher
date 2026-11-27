@@ -1,0 +1,11 @@
+[Unit]
+Description=Appbox security inventory and vulnerability report
+
+[Service]
+Type=oneshot
+UMask=0077
+Nice=15
+IOSchedulingClass=idle
+Environment=DOCKER_HOST=unix://%h/.docker/run/docker.sock
+ExecStart=/usr/bin/python3 %h/.local/lib/appbox-security/runner/security.py --trivy %h/.local/lib/appbox-security/0.76.2/trivy
+TimeoutStartSec=55min
