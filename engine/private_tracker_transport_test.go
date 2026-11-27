@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,44 @@ import (
 	"github.com/anacrolix/torrent/tracker"
 	"github.com/anacrolix/torrent/tracker/udp"
 )
+
+type trackerTestTransport func(*http.Request) (*http.Response, error)
+
+func (transport trackerTestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return transport(req)
+}
+
+func TestPrivateTrackerHTTPDeadline(t *testing.T) {
+	a, code := newPrivateAnnouncer("http://example.test/announce", nil)
+	if code != "" {
+		t.Fatal(code)
+	}
+	defer a.close()
+	var deadline time.Time
+	a.http.Transport = trackerTestTransport(func(req *http.Request) (*http.Response, error) {
+		deadline, _ = req.Context().Deadline()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("d8:intervali30e5:peers0:e")),
+		}, nil
+	})
+	started := time.Now()
+	if _, code := a.announce(t.Context(), tracker.AnnounceRequest{}); code != "" {
+		t.Fatal(code)
+	}
+	if timeout := deadline.Sub(started); timeout <= tracker.DefaultTrackerAnnounceTimeout || timeout >= privateHTTPAnnounceTimeout+time.Second {
+		t.Fatalf("unexpected HTTP announce deadline: %s", timeout)
+	}
+	callerDeadline := time.Now().Add(2 * time.Second)
+	ctx, cancel := context.WithDeadline(t.Context(), callerDeadline)
+	defer cancel()
+	if _, code := a.announce(ctx, tracker.AnnounceRequest{Event: tracker.Stopped}); code != "" {
+		t.Fatal(code)
+	}
+	if !deadline.Equal(callerDeadline) {
+		t.Fatal("announce extended the caller's deadline")
+	}
+}
 
 func TestPrivateTrackerHTTPUsesBoundDialerAndValidatesTLS(t *testing.T) {
 	req := tracker.AnnounceRequest{InfoHash: [20]byte{1}, Event: tracker.Completed}

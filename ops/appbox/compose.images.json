@@ -1,0 +1,16 @@
+{
+  "services": {
+    "torsher": {
+      "image": "ghcr.io/torsher-app/torsher:1.10.0@sha256:d0ce744a4b436d0e043a79a3dc07d9103073a264a4f34c53419eb95b47fe5980"
+    },
+    "jackett": {
+      "image": "lscr.io/linuxserver/jackett:v0.24.3073-ls38@sha256:653d879518f974b40f2ec59dc8c1d011e5293d175bf4867d7aacbbeb8ed43b28"
+    },
+    "prowlarr": {
+      "image": "lscr.io/linuxserver/prowlarr:3.1.0.5799-ls170@sha256:2806c9b763810589c42157730d547c293639e55c7610e9f5069314854639ec48"
+    },
+    "flaresolverr": {
+      "image": "ghcr.io/flaresolverr/flaresolverr:v3.5.2@sha256:c80ae007ce2ccdcd217a12426e4f039ef763ff90738c808d38810c3e59323767"
+    }
+  }
+}

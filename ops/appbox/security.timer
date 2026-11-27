@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Appbox vulnerability inventory
+
+[Timer]
+OnCalendar=*-*-* 05:25:00 Europe/Kiev
+Persistent=true
+RandomizedDelaySec=10min
+Unit=appbox-security.service
+
+[Install]
+WantedBy=timers.target

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/anacrolix/dht/v2/krpc"
 	"github.com/anacrolix/torrent/bencode"
@@ -35,6 +36,8 @@ const (
 const (
 	maxPrivateTrackerResponse = 1 << 20
 	maxUDPTrackerURI          = 4096
+	// HTTP tracker gateways can respond after the library's default deadline.
+	privateHTTPAnnounceTimeout = 45 * time.Second
 )
 
 // The endpoint contains credentials. Only error codes leave the transport.
@@ -90,7 +93,11 @@ func (a *privateAnnouncer) close() {
 }
 
 func (a *privateAnnouncer) announce(ctx context.Context, req tracker.AnnounceRequest) (tracker.AnnounceResponse, trackerErrorCode) {
-	ctx, cancel := context.WithTimeout(ctx, tracker.DefaultTrackerAnnounceTimeout)
+	timeout := tracker.DefaultTrackerAnnounceTimeout
+	if a.http != nil {
+		timeout = privateHTTPAnnounceTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	if a.http != nil {
 		return a.announceHTTP(ctx, req)

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": [
+    "docker-compose",
+    "npm",
+    "gomod",
+    "gradle",
+    "gradle-wrapper",
+    "dockerfile"
+  ],
+  "pinDigests": true,
+  "separateMinorPatch": true,
+  "prHourlyLimit": 2,
+  "automerge": false,
+  "docker-compose": {
+    "managerFilePatterns": [
+      "/^ops\\/appbox\\/compose(?:\\.[^/]+)?\\.json$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "matchManagers": [
+        "docker-compose"
+      ],
+      "labels": [
+        "appbox",
+        "security-review"
+      ]
+    }
+  ]
+}
