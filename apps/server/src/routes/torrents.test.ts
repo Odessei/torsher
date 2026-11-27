@@ -888,9 +888,9 @@ describe('воспроизведение и позиция', () => {
     try {
       const torrent = insertTorrent({
         files: [
-          { path: 'Show.S01E01.mkv', size: 9_437_184 },
+          { path: 'Show.S01E01.mkv', size: 9_437_184, padding: false },
           { path: '.pad/40', size: 40, padding: true },
-          { path: 'Show.S01E02.mkv', size: 9_437_184 },
+          { path: 'Show.S01E02.mkv', size: 9_437_184, padding: false },
         ],
       })
       const selections: string[] = []
@@ -946,7 +946,7 @@ describe('воспроизведение и позиция', () => {
     vi.stubEnv('TORSHER_ACCOUNT_QUOTA_FILE', file)
     try {
       const torrent = insertTorrent({
-        files: [{ path: 'Movie.mkv', size: 10 * GIB }],
+        files: [{ path: 'Movie.mkv', size: 10 * GIB, padding: false }],
       })
       engine({ 'POST /torrents': () => json(movieDetails) })
       await expect(
@@ -963,8 +963,8 @@ describe('воспроизведение и позиция', () => {
   it('leaves the torrent in streaming mode when the full release does not fit', async () => {
     const torrent = insertTorrent({
       files: [
-        { path: 'Show.S01E01.mkv', size: 9_437_184 },
-        { path: 'Show.S01E02.mkv', size: 900 * GIB },
+        { path: 'Show.S01E01.mkv', size: 9_437_184, padding: false },
+        { path: 'Show.S01E02.mkv', size: 900 * GIB, padding: false },
       ],
     })
     engine({ 'POST /torrents': () => json(movieDetails) })

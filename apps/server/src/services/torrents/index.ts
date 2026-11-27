@@ -798,7 +798,7 @@ async function addToEngineImpl(
         downloadDir: dir,
         forceDirectory,
         diskProgress,
-        checkAccountQuota,
+        ...(checkAccountQuota && { checkAccountQuota: true }),
         ...(spaceKind === 'download' && { retention: 'keep' }),
       },
       doAdd,
