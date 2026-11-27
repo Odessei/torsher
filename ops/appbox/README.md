@@ -122,7 +122,10 @@ SHA and digest are placeholders.
     "pr": 12,
     "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "workflows": [".github/workflows/ci.yml"],
-    "target": {"service": "proxy", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+    "target": {
+      "service": "proxy",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
   }
 ]
 ```
