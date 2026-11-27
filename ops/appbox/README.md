@@ -43,10 +43,12 @@ remains open in the journal. Ubuntu package candidates describe the local apt
 index. The provider must verify backports, planned kernel reboots and the
 running versions of services outside this rootless Docker account.
 
-Renovate checks npm, Go, Gradle and the pinned container images. Its Compose
-manager includes the JSON manifests in this directory. Changes go through a
-PR. CI records lockfile advisory results and builds a single Torsher image
-containing the maintained patches. Use a tested registry digest for a rollout.
+Renovate checks npm, Go, Gradle and the pinned container images. A custom
+manager extracts tags and digests from the Compose JSON manifests in this
+directory. Changes go through a PR. CI scans the pinned Compose images,
+records lockfile advisory results and builds a single Torsher image containing
+the maintained patches. GitHub can require workflow approval for PRs created
+with the repository token. Use a tested registry digest for a rollout.
 The Dockerfile pins the base images. Package mirrors and build timestamps can
 still change the byte-level output of an independent rebuild.
 

@@ -5,6 +5,7 @@
   ],
   "enabledManagers": [
     "docker-compose",
+    "custom.regex",
     "npm",
     "gomod",
     "gradle",
@@ -15,15 +16,24 @@
   "separateMinorPatch": true,
   "prHourlyLimit": 2,
   "automerge": false,
-  "docker-compose": {
-    "managerFilePatterns": [
-      "/^ops\\/appbox\\/compose(?:\\.[^/]+)?\\.json$/"
-    ]
-  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update tagged and pinned image references in Appbox Compose JSON",
+      "managerFilePatterns": [
+        "/^ops\\/appbox\\/compose[^/]*\\.json$/"
+      ],
+      "matchStrings": [
+        "\"image\"\\s*:\\s*\"(?<depName>[^\\s\"@]+):(?<currentValue>[^\\s\":@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
+  ],
   "packageRules": [
     {
       "matchManagers": [
-        "docker-compose"
+        "custom.regex"
       ],
       "labels": [
         "appbox",
