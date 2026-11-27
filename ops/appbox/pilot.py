@@ -32,22 +32,34 @@ http.createServer((req, res) => {
 }).listen(18080, '127.0.0.1')
 """
 PROBE = """
-const assert=require('node:assert/strict');
-(async()=>{
-  const request=(host,path,headers={})=>fetch('http://127.0.0.1:18081'+path,{headers:{host,...headers}});
-  const trusted=await request('trusted.example.test','/session');
-  assert.equal(trusted.status,200);
-  assert.equal(await trusted.text(),'inside');
-  const denied=await request('outside.example.test','/session',{'x-forwarded-for':'127.0.0.1'});
-  assert.equal(denied.status,403);
-  const media=await request('trusted.example.test','/video',{range:'bytes=0-2'});
-  assert.equal(media.status,206);
-  assert.equal(media.headers.get('content-range'),'bytes 0-2/6');
-  assert.equal(await media.text(),'abc');
-  const hls=await request('trusted.example.test','/playlist');
-  assert.equal(hls.status,200);
-  assert.match(await hls.text(),/^#EXTM3U/);
-})().catch(()=>process.exit(1));
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const request = (host, path, headers = {}) => new Promise((resolve, reject) => {
+  const req = http.get({hostname: '127.0.0.1', port: 18081, path,
+                        headers: {Host: host, ...headers}}, res => {
+    let text = '';
+    res.setEncoding('utf8');
+    res.on('data', chunk => { text += chunk; });
+    res.on('end', () => resolve({status: res.statusCode, headers: res.headers, text}));
+    res.on('error', reject);
+  });
+  req.on('error', reject);
+  req.setTimeout(3000, () => req.destroy());
+});
+(async () => {
+  const trusted = await request('trusted.example.test','/session');
+  assert.equal(trusted.status, 200, 'trusted route');
+  assert.equal(trusted.text, 'inside', 'trusted forwarding');
+  const denied = await request('outside.example.test','/session',{'x-forwarded-for':'127.0.0.1'});
+  assert.equal(denied.status, 403, 'outside route');
+  const media = await request('trusted.example.test','/video',{range:'bytes=0-2'});
+  assert.equal(media.status, 206, 'range status');
+  assert.equal(media.headers['content-range'], 'bytes 0-2/6');
+  assert.equal(media.text, 'abc');
+  const hls = await request('trusted.example.test','/playlist');
+  assert.equal(hls.status, 200, 'hls status');
+  assert.match(hls.text, /^#EXTM3U/);
+})().catch((err) => { console.error(err.message); process.exit(1); });
 """
 
 
