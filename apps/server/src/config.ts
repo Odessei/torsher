@@ -98,6 +98,17 @@ export const config = {
     return process.env.USENET_INBOX_PATH || '/usenet-inbox'
   },
 
+  get accountQuotaFile() {
+    return process.env.TORSHER_ACCOUNT_QUOTA_FILE?.trim() || undefined
+  },
+
+  get completeTorrentOnPlayback() {
+    return ON.includes(
+      process.env.TORSHER_COMPLETE_TORRENT_ON_PLAYBACK?.trim().toLowerCase()
+      ?? '',
+    )
+  },
+
   // Бинарник движка. В разработке его собирает `engine:build` в каталог данных,
   // образ передаёт свой путь
   get enginePath() {

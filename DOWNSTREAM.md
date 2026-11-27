@@ -17,3 +17,12 @@ Use a merge commit there too. The sync job reports when it finds that
 Repository Actions must allow workflows to create pull requests. The sync
 workflow uses the repository's built-in GitHub token with read access to
 contents and write access to pull requests.
+## Deployment settings
+
+Keep account credentials, service addresses, keys, invite links and live
+configuration outside the repository. The Secret scan workflow checks new Git
+commits for credentials and database files.
+
+Set `TORSHER_COMPLETE_TORRENT_ON_PLAYBACK=1` in the server environment to keep
+and complete the selected torrent in the background when its player opens.
+Playback keeps its normal streaming behavior when there is insufficient space.

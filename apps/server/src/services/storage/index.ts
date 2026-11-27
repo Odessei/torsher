@@ -12,9 +12,11 @@ import type {
   ShortageKind,
   StoredTorrent,
 } from './eviction.ts'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { storageLocation, storagePath, torrentDir } from './paths.ts'
+import { config } from '../../config.ts'
 import { getDb } from '../../db/index.ts'
 import { torrents } from '../../db/schema.ts'
 import {
@@ -437,6 +439,7 @@ export interface SpaceRequest {
   forceDirectory?: boolean
   diskProgress?: { dir: string, files: number[] }
   retention?: Torrent['retention']
+  checkAccountQuota?: boolean
 }
 
 function diskProgress(
@@ -643,6 +646,42 @@ async function runEnforce(
       'moving',
       'Previous download start is still unconfirmed',
     )
+  }
+
+  const quotaFile = request?.checkAccountQuota && config.accountQuotaFile
+  if (need && quotaFile) {
+    const { limitBytes, usedBytes, sampledAt } = JSON.parse(
+      await readFile(quotaFile, 'utf8'),
+    )
+    const age = Date.now() / 1000 - sampledAt
+    if (
+      !Number.isSafeInteger(limitBytes)
+      || limitBytes <= 0
+      || !Number.isSafeInteger(usedBytes)
+      || usedBytes < 0
+      || !Number.isSafeInteger(sampledAt)
+      || age < -5
+      || age > 150
+    ) {
+      throw new Error('Account quota is unavailable')
+    }
+    const free = Math.max(0, limitBytes - usedBytes)
+    const reserved = [...outstanding.volumes.values()].reduce(
+      (total, bytes) => total + bytes,
+      0,
+    )
+    const minFree = minFreeOf({ total: limitBytes, free })
+    const available = Math.max(0, free - reserved - minFree)
+    if (need.bytes > available) {
+      throw new InsufficientStorageError({
+        kind: 'no_space',
+        needed: need.bytes,
+        available,
+        free,
+        minFree,
+        cacheLimit: policy.cacheLimit,
+      })
+    }
   }
 
   const cacheInput: EvictionInput = {

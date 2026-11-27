@@ -26,6 +26,7 @@ import {
 import { preparePlayedSource } from '../services/sources/playedSource.ts'
 import { acceptWatchEvent } from '../services/watchEvents.ts'
 import { and, eq } from 'drizzle-orm'
+import { config } from '../config.ts'
 import { getDb } from '../db/index.ts'
 import { libraryFolders, mediaFiles } from '../db/schema.ts'
 import { TS_OFFSET_SECONDS } from '../services/media/hls.ts'
@@ -139,6 +140,7 @@ import { getPinnedVoice } from '../services/sources/voices.ts'
 import { parseCatalogId } from '../services/tmdb/mappers.ts'
 import { isWatched, resumePosition } from '../services/torrents/playback.ts'
 import {
+  completeTorrentOnPlayback,
   fileNameOf,
   getTorrent,
   getWatchState,
@@ -1291,6 +1293,20 @@ export const playbackRoutes: FastifyPluginAsyncZod = async (app) => {
       }
       if (ref && !cycleId)
         supersedeAddonCheckpoint(ref, playbackOrder)
+      if (config.completeTorrentOnPlayback && source.torrent) {
+        const torrentId = source.torrent.id
+        void completeTorrentOnPlayback(torrentId, source.fileIndex).catch(
+          (error: unknown) => {
+            request.log.warn(
+              {
+                torrentId,
+                reason: error instanceof Error ? error.name : 'unknown',
+              },
+              'Background torrent completion was not started',
+            )
+          },
+        )
+      }
       return response
     },
   )

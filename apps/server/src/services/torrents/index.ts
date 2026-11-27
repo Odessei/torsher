@@ -735,6 +735,7 @@ async function addToEngineImpl(
   spaceKind: 'stream' | 'download' | 'unknown' = 'unknown',
   priorities?: Pick<Torrent, 'firstFiles' | 'lowFiles'>,
   recovery = false,
+  checkAccountQuota = false,
 ) {
   const current = getTorrent(torrent.id)
   if (!current?.torrentFile)
@@ -797,6 +798,7 @@ async function addToEngineImpl(
         downloadDir: dir,
         forceDirectory,
         diskProgress,
+        checkAccountQuota,
         ...(spaceKind === 'download' && { retention: 'keep' }),
       },
       doAdd,
@@ -838,6 +840,7 @@ async function downloadFilesImpl(
   options: {
     dir?: Torrent['downloadDir']
     origin?: 'follow' | 'manual' | 'preserve'
+    checkAccountQuota?: true
     priorities?: { index: number, priority: 'high' | 'medium' | 'low' }[]
   } = {},
 ) {
@@ -875,6 +878,8 @@ async function downloadFilesImpl(
     pauseReason !== null,
     'download',
     priorities,
+    false,
+    options.checkAccountQuota,
   )
 
   update(torrent.id, {
@@ -898,6 +903,44 @@ async function downloadFilesImpl(
 export function downloadFiles(...args: Parameters<typeof downloadFilesImpl>) {
   return withMaintenanceLease({ torrentId: args[0].id }, () =>
     withEngineMutation(args[0].id, () => downloadFilesImpl(...args)))
+}
+
+/** Complete the exact release already opened by the player. */
+export function completeTorrentOnPlayback(
+  torrentId: string,
+  fileIndex: number,
+) {
+  return withMaintenanceLease({ torrentId }, () =>
+    withEngineMutation(torrentId, async () => {
+      const torrent = getTorrent(torrentId)
+      if (
+        !torrent?.torrentFile
+        || torrent.pauseReason
+        || torrent.fullDownload
+        || torrent.isPrivate
+      ) {
+        return
+      }
+
+      const files = (torrent.files ?? []).flatMap((file, index) =>
+        file.padding ? [] : [index],
+      )
+      if (!files.includes(fileIndex))
+        return
+
+      const selected = new Set(torrent.selectedFiles ?? [])
+      if (
+        torrent.retention === 'keep'
+        && files.every(index => selected.has(index))
+      ) {
+        return
+      }
+
+      await downloadFilesImpl(torrent, files, {
+        checkAccountQuota: true,
+        priorities: [{ index: fileIndex, priority: 'high' }],
+      })
+    }))
 }
 
 async function pauseDownloadImpl(torrent: Torrent) {
