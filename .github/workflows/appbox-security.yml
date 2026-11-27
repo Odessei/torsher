@@ -12,6 +12,17 @@ permissions:
   contents: read
 
 jobs:
+  github-journal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify GitHub evidence and Appbox reconciliation
+        run: python3 -m unittest discover -s ops/appbox -p test_github_journal.py
+
   dependencies:
     runs-on: ubuntu-latest
     steps:

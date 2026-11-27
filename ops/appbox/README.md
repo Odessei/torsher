@@ -85,3 +85,52 @@ release overrides only after the fork image is shown to contain their behavior.
 Keep real service addresses, keys and registry credentials outside this repo.
 Use Compose `env_file` or mounted secrets at runtime. The Appbox image workflow
 does not supply a TMDB key or other production secret to the build.
+
+## GitHub evidence in the private journal
+
+Use Dependabot alerts for detection and Renovate for update PRs. Keep
+Dependabot security-update PRs disabled. GitHub manages its own notifications.
+The journal collector adds context to existing scanner findings and sends no
+additional notifications.
+
+`github_journal.py collect --repo OWNER/REPO` reads alerts and CodeQL results.
+Supply a credential over stdin or use `--token-file` with a private file for
+read-only unattended collection. Restrict a dedicated credential to the
+selected repositories and the GitHub permissions needed to read Dependabot,
+code scanning, secret scanning, pull requests and Actions. Secret Scanning
+requests use GitHub's redacted response mode. The output contains allowlisted
+metadata only.
+
+Pass the collector's JSON to `github_journal.py ingest --state <state-dir>`
+over stdin on Appbox. Run the importer with the same account and state
+directory as `security.py`. It records GitHub URLs, alert and advisory IDs,
+analysis SHAs and release evidence in the existing JSONL journal. Related CVE
+and GHSA identifiers are grouped into one incident. Identical polls reuse the
+existing evidence entry. A read failure leaves the previous evidence in place
+and records the failed query.
+
+Use `--plan <private-fixes.json>` on the collector to associate an advisory
+or alert with a fix. This example shows the input format. The repository names,
+SHA and digest are placeholders.
+
+```json
+[
+  {
+    "repository": "example/project",
+    "advisories": ["GHSA-xxxx-yyyy-zzzz"],
+    "advisoryRepository": "example/vendor",
+    "pr": 12,
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "workflows": [".github/workflows/ci.yml"],
+    "target": {"service": "proxy", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+  }
+]
+```
+
+For an individual GitHub alert, supply its `kind` (`dependabot`,
+`code-scanning` or `secret-scanning`) and `number`. Use the tested PR head
+while the PR is open. After merge, record the exact merge SHA and evidence
+from CI on the base branch. The importer marks Appbox `confirmed` only
+after successful CI for that merged revision and a matching running image.
+Supply a digest for a rebuild or fork and use a version only for a distinct
+vendor release. Keep the plan and the journal outside the public repository.
