@@ -1,6 +1,10 @@
 import type { AddressInfo } from 'node:net'
 import type { Torrent } from '../db/schema.ts'
 import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
+import { unlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { get } from 'node:http'
 import {
   afterEach,
@@ -23,6 +27,7 @@ import {
   movieDetails,
   sampleTorrentFile,
 } from '../services/engine/fixtures/index.ts'
+import { completeTorrentOnPlayback } from '../services/torrents/index.ts'
 import { signToken } from '../utils/token.ts'
 import {
   createProfile,
@@ -876,6 +881,101 @@ describe('воспроизведение и позиция', () => {
     expect(body.externalUrl).toBe(body.streamUrl)
     expect(engineCalls()).toEqual(['POST /torrents'])
     expect(getDb().select().from(torrents).get()?.inEngine).toBe(true)
+  })
+
+  it('keeps the entire chosen release downloading when the player closes', async () => {
+    vi.stubEnv('TORSHER_COMPLETE_TORRENT_ON_PLAYBACK', '1')
+    try {
+      const torrent = insertTorrent({
+        files: [
+          { path: 'Show.S01E01.mkv', size: 9_437_184, padding: false },
+          { path: '.pad/40', size: 40, padding: true },
+          { path: 'Show.S01E02.mkv', size: 9_437_184, padding: false },
+        ],
+      })
+      const selections: string[] = []
+      engine({
+        'POST /torrents': (url) => {
+          selections.push(url.searchParams.get('files') ?? '')
+          return json(movieDetails)
+        },
+      })
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/playback',
+        cookies: owner,
+        payload: { torrentId: torrent.id, fileIndex: 0 },
+      })
+      expect(response.statusCode).toBe(200)
+      const { sessionId } = response.json()
+      expect(
+        (
+          await app.inject({
+            method: 'DELETE',
+            url: `/api/playback/${sessionId}`,
+            cookies: owner,
+          })
+        ).statusCode,
+      ).toBe(200)
+      await vi.waitFor(() =>
+        expect(getDb().select().from(torrents).get()).toMatchObject({
+          id: torrent.id,
+          retention: 'keep',
+          selectedFiles: [0, 2],
+          firstFiles: [0],
+        }),
+      )
+      await completeTorrentOnPlayback(torrent.id, 0)
+      expect(selections).toEqual(['', '0,2'])
+    }
+    finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('uses account quota even when the volume has plenty of free space', async () => {
+    const file = join(tmpdir(), `torsher-quota-${randomUUID()}.json`)
+    await writeFile(
+      file,
+      JSON.stringify({
+        limitBytes: 128 * GIB,
+        usedBytes: 124 * GIB,
+        sampledAt: Math.floor(Date.now() / 1000),
+      }),
+    )
+    vi.stubEnv('TORSHER_ACCOUNT_QUOTA_FILE', file)
+    try {
+      const torrent = insertTorrent({
+        files: [{ path: 'Movie.mkv', size: 10 * GIB, padding: false }],
+      })
+      engine({ 'POST /torrents': () => json(movieDetails) })
+      await expect(
+        completeTorrentOnPlayback(torrent.id, 0),
+      ).rejects.toMatchObject({ name: 'InsufficientStorageError' })
+      expect(engineCalls()).not.toContain('POST /torrents')
+    }
+    finally {
+      vi.unstubAllEnvs()
+      await unlink(file)
+    }
+  })
+
+  it('leaves the torrent in streaming mode when the full release does not fit', async () => {
+    const torrent = insertTorrent({
+      files: [
+        { path: 'Show.S01E01.mkv', size: 9_437_184, padding: false },
+        { path: 'Show.S01E02.mkv', size: 900 * GIB, padding: false },
+      ],
+    })
+    engine({ 'POST /torrents': () => json(movieDetails) })
+    await expect(
+      completeTorrentOnPlayback(torrent.id, 0),
+    ).rejects.toMatchObject({ name: 'InsufficientStorageError' })
+    expect(getDb().select().from(torrents).get()).toMatchObject({
+      retention: 'cache',
+      selectedFiles: null,
+    })
+    expect(engineCalls()).not.toContain('POST /torrents')
   })
 
   it('сохранённая позиция предлагается при следующем открытии', async () => {
