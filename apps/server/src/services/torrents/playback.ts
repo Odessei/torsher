@@ -252,7 +252,5 @@ export function streamWindowOf(
       ? (size / duration) * minutes * 60
       : DEFAULT_STREAM_WINDOW * scale
 
-  return Math.round(
-    Math.min(size > 0 ? size : cap, cap, Math.max(MIN_STREAM_WINDOW, window)),
-  )
+  return Math.round(Math.min(cap, Math.max(MIN_STREAM_WINDOW, window)))
 }
