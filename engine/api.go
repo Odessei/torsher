@@ -162,6 +162,7 @@ func (a *api) routes() http.Handler {
 	mux.HandleFunc("POST /torrents/{hash}/pause", a.pause)
 	mux.HandleFunc("POST /torrents/{hash}/resume", a.resume)
 	mux.HandleFunc("DELETE /torrents/{hash}", a.forget)
+	mux.HandleFunc("POST /torrents/{hash}/retire-rejected-source", a.retireRejectedSource)
 	mux.HandleFunc("GET /torrents/{hash}/delete-preview", a.deletePreview)
 	mux.HandleFunc("POST /torrents/{hash}/move", a.startMove)
 	mux.HandleFunc("GET /torrents/{hash}/move", a.moveStatus)
@@ -1039,6 +1040,29 @@ type forgetResponse struct {
 // с отметками скачанных кусков: иначе повторное добавление сочло бы куски
 // скачанными. Без параметра файлы остаются на диске
 func (a *api) forget(w http.ResponseWriter, r *http.Request) {
+	a.forgetTorrent(w, r, false)
+}
+
+func (a *api) retireRejectedSource(w http.ResponseWriter, r *http.Request) {
+	a.forgetTorrent(w, r, true)
+}
+
+func (a *api) canRetireRejectedSource(hash metainfo.Hash) bool {
+	t, live := a.client.Torrent(hash)
+	saved, valid := a.session.lookup(hash)
+	if !live || !valid || !saved.Private || a.trackers == nil ||
+		saved.StartAnnounceState != announceAttempted || saved.LeftZeroAccepted ||
+		saved.SeededSeconds != 0 || t.Info() == nil || t.BytesCompleted() != 0 ||
+		a.ownership.blocked(hash) || a.maintenanceBlocked(hash, nil) ||
+		a.isMoving(hash) || a.windows.streaming(hash) {
+		return false
+	}
+	stats := t.Stats()
+	return stats.ActivePeers == 0 && stats.BytesReadUsefulData.Int64() == 0 &&
+		a.uploadedOf(t, saved) == 0 && a.trackers.rejectedStart(t)
+}
+
+func (a *api) forgetTorrent(w http.ResponseWriter, r *http.Request, rejectedOnly bool) {
 	var requested metainfo.Hash
 	if err := requested.FromHexString(r.PathValue("hash")); err != nil {
 		writeError(w, 400, "invalid_hash", err)
@@ -1050,7 +1074,11 @@ func (a *api) forget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer unlock()
-	if r.URL.Query().Get("private_unstarted_only") == "true" {
+	if rejectedOnly && !a.canRetireRejectedSource(requested) {
+		writeError(w, http.StatusConflict, "torrent_obligation_unmet", errors.New("the private tracker session cannot be replaced safely"))
+		return
+	}
+	if !rejectedOnly && r.URL.Query().Get("private_unstarted_only") == "true" {
 		t, live := a.client.Torrent(requested)
 		saved, valid := a.session.lookup(requested)
 		if a.ownership.blocked(requested) || !live || !valid || !saved.Private ||
@@ -1059,7 +1087,7 @@ func (a *api) forget(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if r.URL.Query().Get("require_verified") == "true" {
+	if !rejectedOnly && r.URL.Query().Get("require_verified") == "true" {
 		t, live := a.client.Torrent(requested)
 		if !live || a.ownership.blocked(requested) || !a.stateOf(t).LeftZeroAccepted {
 			writeError(w, http.StatusConflict, "torrent_obligation_unmet", errors.New("private torrent no longer has a verified tracker acknowledgement"))
@@ -1084,7 +1112,7 @@ func (a *api) forget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deleteFiles := r.URL.Query().Get("delete_files") == "true"
+	deleteFiles := !rejectedOnly && r.URL.Query().Get("delete_files") == "true"
 	if deleteFiles && len(a.session.get(t.InfoHash()).GuardedPaths) > 0 {
 		writeError(w, 409, "source_identity_guarded", errors.New("Files are protected after maintenance cancellation. Remove the download while keeping files, or use library maintenance after checking the source."))
 		return
@@ -1106,6 +1134,10 @@ func (a *api) forget(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.session.remove(hash); err != nil {
 		a.logger.Warn("remove session", "err", err)
+		if rejectedOnly {
+			writeError(w, http.StatusInternalServerError, "storage", errors.New("the tracker session could not be retired"))
+			return
+		}
 	}
 
 	a.windows.forget(hash)

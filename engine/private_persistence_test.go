@@ -113,6 +113,59 @@ func TestPrivateConditionalForget(t *testing.T) {
 	}
 }
 
+func TestRetireRejectedSourceRequiresConfirmedRejection(t *testing.T) {
+	testCases := []struct {
+		name  string
+		saved string
+		state privateAnnounceState
+		want  int
+	}{
+		{"tracker explicitly rejected", announceAttempted, privateAnnounceState{attempted: true, code: trackerRejected}, http.StatusOK},
+		{"HTTP denied", announceAttempted, privateAnnounceState{attempted: true, code: trackerHTTPDenied}, http.StatusOK},
+		{"upstream error", announceAttempted, privateAnnounceState{attempted: true, code: trackerHTTPStatus}, http.StatusConflict},
+		{"already accepted", announceAccepted, privateAnnounceState{attempted: true, code: trackerRejected}, http.StatusConflict},
+		{"request pending", announceAttempted, privateAnnounceState{attempted: true, code: trackerHTTPDenied, pending: make(chan privateAnnounceResult)}, http.StatusConflict},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newFixture(t)
+			a, server := newTestEngine(t, t.TempDir())
+			enablePrivateTestTrackers(t, a)
+			hash := fx.meta.HashInfoBytes()
+			raw := encodePrivateTestMeta(t, *fx.meta, false, "https://tracker.example/announce")
+			privateTestCall(t, http.StatusOK, post(t, server.URL+"/torrents?private=true", raw))
+			live, ok := a.client.Torrent(hash)
+			if !ok {
+				t.Fatal("test release is absent")
+			}
+			if err := a.session.update(hash, func(s *savedTorrent) { s.StartAnnounceState = tc.saved }); err != nil {
+				t.Fatal(err)
+			}
+			a.trackers.mu.Lock()
+			a.trackers.active[live] = &tc.state
+			a.trackers.mu.Unlock()
+
+			response := post(t, server.URL+"/torrents/"+hash.HexString()+"/retire-rejected-source", nil)
+			privateTestCall(t, tc.want, response)
+			if _, exists := a.client.Torrent(hash); exists != (tc.want == http.StatusConflict) {
+				t.Fatalf("unexpected retained tracker session: %t", exists)
+			}
+			if tc.want == http.StatusOK {
+				const replacement = "https://replacement.example/announce"
+				updated := encodePrivateTestMeta(t, *fx.meta, false, replacement)
+				privateTestCall(t, http.StatusOK, post(t, server.URL+"/torrents?private=true", updated))
+				current, exists := a.client.Torrent(hash)
+				if !exists || current == live {
+					t.Fatal("replacement did not open a fresh session for the same hash")
+				}
+				if endpoint, _ := a.privateEndpoints.Load(current); endpoint != replacement {
+					t.Fatal("replacement did not use the selected tracker")
+				}
+			}
+		})
+	}
+}
+
 func TestInspectPrivateTrackerIdentity(t *testing.T) {
 	fx := newFixture(t)
 	_, server := newTestEngine(t, t.TempDir())

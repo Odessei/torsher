@@ -876,6 +876,78 @@ describe('экран «Источники» и «Файлы»', () => {
     expect(open.statusCode).toBe(200)
   })
 
+  it.each([true, false])(
+    'refreshes a selected private tracker only if the engine allows it (%s)',
+    async (retire) => {
+      const indexer = getDb().select().from(indexers).get()!
+      getDb().update(indexers).set({ isPrivate: true }).where(eq(indexers.id, indexer.id)).run()
+      const oldFingerprint = 'a'.repeat(64)
+      const replacement = { ...packDetails, trackerFingerprint: 'b'.repeat(64) }
+      const old = getDb().insert(torrents).values({
+        infoHash: packDetails.infoHash,
+        name: packDetails.name,
+        source: 'file',
+        titleId: TITLE,
+        torrentFile: Buffer.from(sampleTorrentFile()),
+        status: 'ready',
+        isPrivate: true,
+        fullDownload: true,
+        trackerFingerprint: oldFingerprint,
+        startAnnounceState: 'attempted',
+        trackerErrorCode: 'http_status',
+        inEngine: true,
+        retention: 'keep',
+        files: packDetails.files.map(file => ({ path: file.path, size: file.length, padding: false })),
+        selectedFiles: [1, 5],
+        firstFiles: [5],
+      }).returning().get()
+
+      try {
+        overrides['POST 127.0.0.1:4000/torrents/inspect'] = () => json(replacement)
+        overrides['POST 127.0.0.1:4000/torrents'] = () => json(replacement)
+        const retireSource = vi.fn(() =>
+          retire
+            ? json({ deletedBytes: 0 })
+            : json(engineError('torrent_obligation_unmet', 'protected'), 409),
+        )
+        overrides[`POST 127.0.0.1:4000/torrents/${old.infoHash}/retire-rejected-source`] = retireSource
+
+        const list = await app.inject({
+          url: `/api/titles/${TITLE}/sources?all=1`,
+          cookies: owner,
+        })
+        const candidate = list.json().candidates.find((item: { quality: string }) => item.quality === '1080p')
+        const opened = await app.inject({
+          method: 'POST',
+          url: `/api/titles/${TITLE}/open`,
+          cookies: owner,
+          payload: { candidateId: candidate.id },
+        })
+
+        expect(retireSource).toHaveBeenCalledOnce()
+        expect(opened.statusCode, opened.body).toBe(retire ? 200 : 409)
+        if (retire)
+          expect(opened.json().torrentId).toBe(old.id)
+        const rows = getDb().select().from(torrents).all()
+        expect(rows).toMatchObject([{
+          id: old.id,
+          infoHash: old.infoHash,
+          titleId: TITLE,
+          trackerFingerprint: retire ? replacement.trackerFingerprint : oldFingerprint,
+          trackerErrorCode: retire ? null : 'http_status',
+          selectedFiles: [1, 5],
+          firstFiles: [5],
+          inEngine: true,
+          retention: 'keep',
+          isPrivate: true,
+        }])
+      }
+      finally {
+        getDb().update(indexers).set({ isPrivate: indexer.isPrivate }).where(eq(indexers.id, indexer.id)).run()
+      }
+    },
+  )
+
   it('все сезоны, open без выбора файла, файлы серий и метка последнего просмотра', async () => {
     const list = await app.inject({
       url: `/api/titles/${TITLE}/sources?all=1`,

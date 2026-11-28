@@ -29,6 +29,7 @@ const (
 	trackerTLSFailure      trackerErrorCode = "tls_failed"
 	trackerRedirect        trackerErrorCode = "redirect"
 	trackerHTTPStatus      trackerErrorCode = "http_status"
+	trackerHTTPDenied      trackerErrorCode = "http_denied"
 	trackerInvalidResponse trackerErrorCode = "invalid_response"
 	trackerRejected        trackerErrorCode = "rejected"
 )
@@ -154,6 +155,9 @@ func (a *privateAnnouncer) announceHTTP(ctx context.Context, req tracker.Announc
 	switch {
 	case response.StatusCode >= 300 && response.StatusCode <= 399:
 		return tracker.AnnounceResponse{}, trackerRedirect
+	case response.StatusCode == http.StatusUnauthorized, response.StatusCode == http.StatusForbidden,
+		response.StatusCode == http.StatusNotFound, response.StatusCode == http.StatusGone:
+		return tracker.AnnounceResponse{}, trackerHTTPDenied
 	case response.StatusCode != http.StatusOK:
 		return tracker.AnnounceResponse{}, trackerHTTPStatus
 	}

@@ -76,9 +76,24 @@ func (m *privateTrackerManager) status(t *torrent.Torrent, seconds int64) (int64
 	ack := m.acks[t]
 	accepted := ack != nil && !flagClosed(ack)
 	if state := m.active[t]; state != nil {
-		return max(seconds, state.seconds), state.code, accepted
+		code := state.code
+		if code == trackerHTTPDenied {
+			code = trackerHTTPStatus
+		}
+		return max(seconds, state.seconds), code, accepted
 	}
 	return seconds, "", accepted
+}
+
+// Called while holding the hash operation. A pending or ambiguous response
+// cannot authorize retiring the existing session.
+func (m *privateTrackerManager) rejectedStart(t *torrent.Torrent) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state := m.active[t]
+	return state != nil && state.pending == nil && state.attempted &&
+		!state.started && state.seconds == 0 && m.acks[t] == nil &&
+		(state.code == trackerRejected || state.code == trackerHTTPDenied)
 }
 
 func (m *privateTrackerManager) request(a *api, t *torrent.Torrent, event tracker.AnnounceEvent, complete bool) tracker.AnnounceRequest {
