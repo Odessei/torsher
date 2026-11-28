@@ -45,6 +45,7 @@ import {
   pauseTorrent,
   resolveMagnet,
   resumeTorrent,
+  retireRejectedSource,
   selectFiles,
   torrentStats,
 } from '../engine/index.ts'
@@ -406,6 +407,7 @@ export async function addTorrentFile(
   bytes: Uint8Array,
   origin: TorrentOrigin = 'search',
   policy?: TorrentSourcePolicy,
+  options: { refreshForTitle?: string } = {},
 ): Promise<AddResult> {
   const details = await inspectTorrent(bytes)
   const infoHash = details.infoHash.toLowerCase()
@@ -415,7 +417,7 @@ export async function addTorrentFile(
     ? privateFields(details, policy)
     : trackerIdentity(details)
 
-  const useExisting = (existing: Torrent): AddResult => {
+  const useExisting = async (existing: Torrent): Promise<AddResult> => {
     if (
       (isPrivate || existing.isPrivate)
       && (!isPrivate
@@ -424,7 +426,56 @@ export async function addTorrentFile(
         || existing.trackerFingerprint !== details.trackerFingerprint
         || !existing.trackerFingerprint)
     ) {
-      throw new TorrentSessionConflictError()
+      if (
+        !options.refreshForTitle
+        || existing.titleId !== options.refreshForTitle
+        || !existing.inEngine
+        || !existing.isPrivate
+        || !policy?.isPrivate
+        || !existing.trackerFingerprint
+        || !details.trackerFingerprint
+        || existing.trackerFingerprint === details.trackerFingerprint
+        || existing.startAnnounceState === 'accepted'
+        || existing.leftZeroAccepted
+        || existing.seededSeconds !== 0
+        || existing.verifiedComplete
+        || existing.completedAt
+      ) {
+        throw new TorrentSessionConflictError()
+      }
+
+      try {
+        await retireRejectedSource(infoHash)
+      }
+      catch (err) {
+        if (
+          err instanceof EngineError
+          && (err.kind === 'not_found' || err.engineCode === 'torrent_obligation_unmet')
+        ) {
+          throw new TorrentSessionConflictError()
+        }
+        throw err
+      }
+
+      const refreshed = update(existing.id, {
+        ...readyFields(bytes, details),
+        ...privacy,
+        name,
+        source: 'file',
+        magnet: null,
+        inEngine: false,
+        startAnnounceState: null,
+        trackerErrorCode: null,
+      })
+      const torrent
+        = existing.retention === 'keep' && existing.selectedFiles?.length
+          ? await downloadFilesImpl(refreshed, existing.selectedFiles, {
+              origin: 'preserve',
+              checkAccountQuota: true,
+            })
+          : refreshed
+      notifyReady(torrent)
+      return { torrent, created: false }
     }
     if (existing.status === 'ready')
       return { torrent: existing, created: false }

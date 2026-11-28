@@ -148,6 +148,7 @@ export async function acquire(
   origin: TorrentOrigin = 'search',
   isCurrent: () => boolean = () => true,
   canUseExisting?: (torrent: Torrent) => Promise<boolean>,
+  options: { refreshForTitle?: string } = {},
 ): Promise<Torrent | undefined> {
   const indexerId = release.link?.indexerId ?? release.sourceIndexerId
   const currentIndexer = () => (indexerId ? getIndexer(indexerId) : undefined)
@@ -215,6 +216,7 @@ export async function acquire(
               minimumSeedTimeMinutes: release.minimumSeedTimeMinutes,
               seedType: release.seedType,
             },
+            options,
           ),
         )
       }
@@ -335,6 +337,7 @@ export async function openCandidate(
       'search',
       () => true,
       torrent => titleAllowed(profileId, torrent.titleId),
+      { refreshForTitle: titleId },
     )
   }
   catch (err) {

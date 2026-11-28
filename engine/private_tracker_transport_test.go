@@ -112,6 +112,8 @@ func TestPrivateTrackerHTTPKeepsCredentialsAtFirstEndpoint(t *testing.T) {
 			http.Redirect(w, r, second.URL+"/"+token, http.StatusFound)
 		case "error":
 			http.Error(w, token, http.StatusInternalServerError)
+		case "denied":
+			http.Error(w, token, http.StatusNotFound)
 		case "rejected":
 			_, _ = w.Write(bencode.MustMarshal(map[string]string{"failure reason": token}))
 		case "invalid":
@@ -122,6 +124,7 @@ func TestPrivateTrackerHTTPKeepsCredentialsAtFirstEndpoint(t *testing.T) {
 	for path, want := range map[string]trackerErrorCode{
 		"redirect": trackerRedirect,
 		"error":    trackerHTTPStatus,
+		"denied":   trackerHTTPDenied,
 		"rejected": trackerRejected,
 		"invalid":  trackerInvalidResponse,
 	} {

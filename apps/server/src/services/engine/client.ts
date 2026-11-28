@@ -654,6 +654,12 @@ export async function forgetTorrent(
   return result.deletedBytes
 }
 
+export async function retireRejectedSource(infoHash: string) {
+  await engineJson(`/torrents/${infoHash}/retire-rejected-source`, engineForget, {
+    method: 'POST',
+  })
+}
+
 /**
  * Начинает перенос файлов раздачи в другой каталог. Раздача на это время
  * уходит из движка; ход — `torrentMoveState`.
