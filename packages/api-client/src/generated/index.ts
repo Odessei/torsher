@@ -3122,6 +3122,7 @@ export interface SourceCandidateInput {
   diagnostics?: CandidateDiagnosticsInput;
   title: string;
   indexers: string[];
+  deprioritized?: boolean;
   size: number | null;
   episodeSize: number | null;
   seeders: number;
@@ -13534,6 +13535,7 @@ export interface SourceCandidate {
   diagnostics?: CandidateDiagnostics;
   title: string;
   indexers: string[];
+  deprioritized?: boolean;
   size: number | null;
   episodeSize: number | null;
   seeders: number;

@@ -101,6 +101,7 @@ export const sourceCandidate = z
     // Исходное имя раздачи
     title: z.string(),
     indexers: z.array(z.string()),
+    deprioritized: z.boolean().optional(),
     size: z.number().nullable(),
     // Размер на серию у сериала; у пака без диапазона серий — по числу серий
     // сезона из TMDB, без него — null

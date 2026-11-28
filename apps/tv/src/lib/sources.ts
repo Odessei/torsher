@@ -228,14 +228,16 @@ export function arrangeCandidates(
   const shown = candidates
     .filter(item => matchesView(item, view))
     .sort(compareBy(view.sort, order))
+  const standard = shown.filter(item => !item.deprioritized)
   // Раздача последнего просмотра — первой: её ищут, чтобы смотреть дальше
   // Склейка фильтров, а не sort: в Chromium 68 sort нестабилен
-  const pick = shown.filter(item => !item.lastWatched && isProfilePick(item))
+  const pick = standard.filter(item => !item.lastWatched && isProfilePick(item))
 
-  return shown
+  return standard
     .filter(item => item.lastWatched)
     .concat(pick)
-    .concat(shown.filter(item => !item.lastWatched && !pick.includes(item)))
+    .concat(standard.filter(item => !item.lastWatched && !isProfilePick(item)))
+    .concat(shown.filter(item => item.deprioritized))
 }
 
 /** Размер на серию, а без него — весь размер раздачи */

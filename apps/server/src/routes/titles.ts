@@ -17,6 +17,7 @@ import { localTitleImage } from '../services/library/images.ts'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import type { EngineTorrentState } from '../services/engine/index.ts'
 import type { RankedRelease, TitleSources } from '../services/sources/index.ts'
+import { config } from '../config.ts'
 import { messageResponse } from '../dto/common.ts'
 import { insufficientStorageResponse } from '../dto/playback.ts'
 import { engineUnavailableResponse } from '../dto/torrents.ts'
@@ -213,12 +214,16 @@ export function toSourcesResponse(
       release.infoHash ? [release.infoHash.toLowerCase()] : [],
     ),
   )
+  const deprioritized = config.deprioritizedIndexers
   const candidates = sources.ranking.ranked.map((release, index) => ({
     ...toCandidate(
       release,
       release.id === sources.lastWatchedId,
       sources.audio === 'ru',
     ),
+    ...(release.indexers.length > 0
+      && release.indexers.every(source => deprioritized.has(source.name.trim().toLowerCase()))
+      && { deprioritized: true }),
     torrentId: release.infoHash
       ? (knownTorrents.get(release.infoHash.toLowerCase())?.id ?? null)
       : null,
@@ -281,7 +286,9 @@ export function toSourcesResponse(
     pinnedVoice: sources.pinned ?? null,
     seasonCandidate: sources.seasonCandidate ?? null,
     top: sources.ranking.top,
-    candidates,
+    candidates: candidates.sort(
+      (a, b) => Number(!!a.deprioritized) - Number(!!b.deprioritized),
+    ),
     voices: sources.voices,
     query: {
       current: sources.query ?? null,
