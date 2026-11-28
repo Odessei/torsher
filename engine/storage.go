@@ -158,18 +158,19 @@ func sameStorageEntry(first, second string) bool {
 // итоговым именем, если такого ещё нет: скачанное не пропадает, а хранилище
 // без `.part` их бы не увидело
 func adoptPartFiles(downloads string, info *metainfo.Info) {
-	base, err := filepath.Abs(downloads)
+	root, err := os.OpenRoot(downloads)
 	if err != nil {
 		return
 	}
+	defer root.Close()
 
 	files := info.UpvertedFiles()
 	paths := make([]string, 0, len(files))
 	own := make(map[string]bool, len(files))
 
 	for _, file := range files {
-		path := filepath.Join(base, filePathOf(storage.FilePathMakerOpts{Info: info, File: &file}))
-		if !isInside(base, path) {
+		path := filePathOf(storage.FilePathMakerOpts{Info: info, File: &file})
+		if !isInside(".", path) {
 			continue
 		}
 		paths = append(paths, path)
@@ -188,18 +189,18 @@ func adoptPartFiles(downloads string, info *metainfo.Info) {
 			continue
 		}
 
-		if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		if _, err := root.Lstat(path); !errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
 
-		partial, err := os.Lstat(part)
+		partial, err := root.Lstat(part)
 		if err != nil || !partial.Mode().IsRegular() {
 			continue
 		}
 		if entries == nil {
 			entries = make([]metadataEntry, 0, len(paths))
 			for _, name := range paths {
-				if info, err := os.Stat(name); err == nil {
+				if info, err := root.Stat(name); err == nil {
 					entries = append(entries, metadataEntry{name, info})
 				} else if !errors.Is(err, fs.ErrNotExist) {
 					// An unknown owner cannot authorize adopting this candidate.
@@ -209,12 +210,12 @@ func adoptPartFiles(downloads string, info *metainfo.Info) {
 		}
 		owned := false
 		for _, entry := range entries {
-			if os.SameFile(partial, entry.info) && sameStorageEntry(part, entry.path) {
+			if os.SameFile(partial, entry.info) && sameStorageEntry(filepath.Join(downloads, part), filepath.Join(downloads, entry.path)) {
 				owned = true
 				break
 			}
 		}
-		if !owned && os.Rename(part, path) == nil {
+		if !owned && root.Rename(part, path) == nil {
 			entries = append(entries, metadataEntry{path, partial})
 		}
 	}

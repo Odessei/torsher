@@ -79,7 +79,7 @@ function sameTitle(a: string, b: string) {
   )
 }
 
-const TITLE_PREFIX = /[:|]\s*|\.\s+|\s+[-–—]\s+/u
+const TITLE_PREFIX = /[:|]\s*|\.\s+|(?<!\s)\s+[-–—]\s+/u
 const SUPPLEMENTARY_PREFIXES = new Set([
   'making of',
   'behind the scenes',

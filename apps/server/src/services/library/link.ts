@@ -172,21 +172,24 @@ export async function probeLinkMode(
   const target = join(to, `${name}-link`)
 
   try {
-    await writeFile(source, 'torsher')
+    await writeFile(source, 'torsher', { flag: 'wx' })
   }
   catch {
     return null
   }
 
+  let targetCreated = false
   try {
     try {
       await linkDeps.link(source, target)
+      targetCreated = true
       return 'hardlink'
     }
     catch {}
 
     try {
-      await linkDeps.copyFile(source, target, constants.COPYFILE_FICLONE_FORCE)
+      await linkDeps.copyFile(source, target, constants.COPYFILE_FICLONE_FORCE | constants.COPYFILE_EXCL)
+      targetCreated = true
       return 'reflink'
     }
     catch {}
@@ -196,7 +199,7 @@ export async function probeLinkMode(
   finally {
     await Promise.all([
       unlink(source).catch(() => {}),
-      unlink(target).catch(() => {}),
+      targetCreated ? unlink(target).catch(() => {}) : undefined,
     ])
   }
 }

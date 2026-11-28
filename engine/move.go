@@ -25,7 +25,7 @@ import (
 const moveSuffix = ".torsher-move"
 
 // Подмена в тестах: `EXDEV` на любой ФС
-var linkFile = os.Link
+var linkFile = linkMoveFile
 
 // Чужой файл под итоговым именем в новом каталоге: перенос его не трогает
 var errFileExists = errors.New("file already exists in the new directory")
@@ -43,13 +43,19 @@ func sameDir(from, to string) bool {
 		return true
 	}
 
-	fromStat, err := os.Stat(from)
+	source, err := os.OpenRoot(from)
 	if err != nil {
 		return false
 	}
-
-	toStat, err := os.Stat(to)
+	defer source.Close()
+	destination, err := os.OpenRoot(to)
 	if err != nil {
+		return false
+	}
+	defer destination.Close()
+	fromStat, fromErr := source.Stat(".")
+	toStat, toErr := destination.Stat(".")
+	if fromErr != nil || toErr != nil {
 		return false
 	}
 
@@ -60,16 +66,14 @@ func sameDir(from, to string) bool {
 	var random [8]byte
 	_, _ = rand.Read(random[:])
 	name := ".torsher-same-" + hex.EncodeToString(random[:])
-	probe := filepath.Join(to, name)
-
-	file, err := os.OpenFile(probe, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	file, err := destination.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
 		return false
 	}
 	_ = file.Close()
-	defer os.Remove(probe)
+	defer destination.Remove(name)
 
-	_, err = os.Lstat(filepath.Join(from, name))
+	_, err = source.Lstat(name)
 
 	return err == nil
 }
@@ -465,7 +469,7 @@ func (a *api) runMove(job *moveJob, mi *metainfo.MetaInfo, info *metainfo.Info, 
 	log.Info("torrent move started")
 
 	fail := func(err error) {
-		removePlaced(info, from, to, saved.Placed)
+		removePlaced(info, to, saved.Placed)
 
 		saved.MovingTo = ""
 		saved.Placed = nil
@@ -580,190 +584,182 @@ func (a *api) reopen(mi *metainfo.MetaInfo, dir string, saved savedTorrent, comp
 	return setFiles(t, saved.Selected, nil, saved.Low)
 }
 
-type movePair struct {
-	// Путь файла относительно каталога раздачи
-	rel      string
-	src, dst string
-}
-
-// Пары «исходник → цель» файлов раздачи; пути из чужого `.torrent` не выходят
-// за каталоги
-func movePairs(info *metainfo.Info, from, to string) ([]movePair, error) {
-	var pairs []movePair
-
-	for _, file := range info.UpvertedFiles() {
-		rel := filePathOf(storage.FilePathMakerOpts{Info: info, File: &file})
-		src := filepath.Join(from, rel)
-		dst := filepath.Join(to, rel)
-
-		if !isInside(from, src) || !isInside(to, dst) {
-			return nil, fmt.Errorf("file %q is outside the downloads directory", rel)
+func movePaths(info *metainfo.Info) ([]string, error) {
+	files := info.UpvertedFiles()
+	paths := make([]string, 0, len(files))
+	for i := range files {
+		path := filePathOf(storage.FilePathMakerOpts{Info: info, File: &files[i]})
+		if !isInside(".", path) {
+			return nil, fmt.Errorf("file %q is outside the downloads directory", path)
 		}
-
-		pairs = append(pairs, movePair{rel: rel, src: src, dst: dst})
+		paths = append(paths, path)
 	}
-
-	return pairs, nil
+	return paths, nil
 }
 
-func isRegular(path string) bool {
-	stat, err := os.Lstat(path)
-
-	return err == nil && stat.Mode().IsRegular()
-}
-
-// Сколько данных лежит в файлах раздачи без дыр разреженных файлов
 func dataBytes(info *metainfo.Info, from string) (int64, error) {
-	pairs, err := movePairs(info, from, from)
+	paths, err := movePaths(info)
 	if err != nil {
 		return 0, err
 	}
+	root, err := os.OpenRoot(from)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	defer root.Close()
 
 	var total int64
-
-	for _, pair := range pairs {
-		total += dataSize(pair.src)
+	for _, path := range paths {
+		total += dataSize(root, path)
 	}
-
 	return total, nil
 }
 
-func dataSize(path string) int64 {
-	stat, err := os.Lstat(path)
-	if err != nil || !stat.Mode().IsRegular() {
+func dataSize(root *os.Root, path string) int64 {
+	item, err := root.Lstat(path)
+	if err != nil || !item.Mode().IsRegular() {
 		return 0
 	}
+	file, err := root.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer file.Close()
 
-	size := stat.Size()
-	holes, _ := fileHoles(path)
-
+	info, err := file.Stat()
+	if err != nil || !os.SameFile(item, info) {
+		return 0
+	}
+	size := info.Size()
+	holes, _ := fileHolesOf(file)
 	for _, hole := range holes {
 		size -= hole.end - hole.start
 	}
-
 	return size
 }
 
-// Файлы, которые ставит текущий перенос (`Placed` в сессии)
 type placedFiles struct {
 	owned func(rel string) bool
 	claim func(rel string) error
 }
 
-// Ставит каждый скачанный файл в новый каталог, не трогая исходник: в том же
-// томе — хардлинком, иначе копией одних данных. Своя цель от прошлой попытки
-// заменяется: исходник с тех пор мог докачаться
 func placeFiles(info *metainfo.Info, from, to string, placed placedFiles, progress func(int64)) error {
-	pairs, err := movePairs(info, from, to)
+	paths, err := movePaths(info)
 	if err != nil {
 		return err
 	}
+	source, err := os.OpenRoot(from)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+	destination, err := os.OpenRoot(to)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
 
-	for _, pair := range pairs {
-		if !isRegular(pair.src) {
+	for _, path := range paths {
+		item, err := source.Lstat(path)
+		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
-
-		if err := placeFile(pair, placed, progress); err != nil {
+		if err != nil {
+			return err
+		}
+		if !item.Mode().IsRegular() {
+			continue
+		}
+		if err := placeFile(source, destination, path, item, placed, progress); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-func placeFile(pair movePair, placed placedFiles, progress func(int64)) error {
-	src, dst := pair.src, pair.dst
-
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+func placeFile(source, destination *os.Root, path string, item os.FileInfo, placed placedFiles, progress func(int64)) error {
+	if err := destination.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 
-	existing, err := os.Lstat(dst)
-
+	existing, err := destination.Lstat(path)
 	switch {
 	case err == nil:
-		// Уже хардлинк исходника: ставить нечего
-		if source, err := os.Stat(src); err == nil && os.SameFile(source, existing) {
-			progress(dataSize(src))
+		if os.SameFile(item, existing) {
+			progress(dataSize(source, path))
 			return nil
 		}
-
-		if !placed.owned(pair.rel) {
+		if !placed.owned(path) {
 			return errFileExists
 		}
 	case !errors.Is(err, fs.ErrNotExist):
 		return err
-	case !placed.owned(pair.rel):
-		if err := placed.claim(pair.rel); err != nil {
+	case !placed.owned(path):
+		if err := placed.claim(path); err != nil {
 			return err
 		}
 	}
 
-	temp := dst + moveSuffix
-	_ = os.Remove(temp)
-
-	if err := linkFile(src, temp); err == nil {
-		progress(dataSize(src))
-	} else if err := copySparse(src, temp, progress); err != nil {
-		_ = os.Remove(temp)
+	temp := path + moveSuffix
+	_ = destination.Remove(temp)
+	if err := linkFile(source, path, destination, temp); err == nil {
+		linked, err := destination.Lstat(temp)
+		if err != nil || !linked.Mode().IsRegular() || !os.SameFile(item, linked) {
+			_ = destination.Remove(temp)
+			return errors.New("move source changed before linking")
+		}
+		progress(dataSize(source, path))
+	} else if err := copySparse(source, path, destination, temp, progress); err != nil {
+		_ = destination.Remove(temp)
 		return err
 	}
 
-	if err := os.Rename(temp, dst); err != nil {
-		_ = os.Remove(temp)
+	if err := destination.Rename(temp, path); err != nil {
+		_ = destination.Remove(temp)
 		return err
 	}
-
 	return nil
 }
 
-// Копия одних областей с данными: окно просмотра в файле кэша занимает
-// мегабайты, а размер файла — гигабайты. Без `SEEK_DATA` копируется всё
-func copySparse(src, dst string, progress func(int64)) error {
-	in, err := os.Open(src)
+func copySparse(source *os.Root, src string, destination *os.Root, dst string, progress func(int64)) error {
+	in, err := source.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	stat, err := in.Stat()
+	info, err := in.Stat()
 	if err != nil {
 		return err
 	}
-
-	size := stat.Size()
-	holes, _ := fileHoles(src)
-
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, stat.Mode().Perm())
+	if !info.Mode().IsRegular() {
+		return errors.New("move source is not a regular file")
+	}
+	size := info.Size()
+	holes, _ := fileHolesOf(in)
+	out, err := destination.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
 	if err != nil {
 		return err
 	}
+	defer out.Close()
 
 	if err := copyExtents(in, out, size, holes, progress); err != nil {
-		_ = out.Close()
 		return err
 	}
-
 	if err := out.Sync(); err != nil {
-		_ = out.Close()
 		return err
 	}
-
-	if err := out.Close(); err != nil {
-		return err
-	}
-
-	copied, err := os.Stat(dst)
+	copied, err := out.Stat()
 	if err != nil {
 		return err
 	}
-
 	if copied.Size() != size {
 		return fmt.Errorf("copy size mismatch: %d of %d bytes", copied.Size(), size)
 	}
-
-	return nil
+	return out.Close()
 }
 
 func copyExtents(in, out *os.File, size int64, holes []extent, progress func(int64)) error {
@@ -810,52 +806,69 @@ func (p *progressWriter) Write(b []byte) (int, error) {
 
 // Убирает из нового каталога то, что поставила прерванная попытка: временные
 // файлы и файлы из `placed`. Остальное под теми же именами — чужое
-func removePlaced(info *metainfo.Info, from, to string, placed []string) {
-	pairs, err := movePairs(info, from, to)
+func removePlaced(info *metainfo.Info, to string, placed []string) {
+	paths, err := movePaths(info)
 	if err != nil {
 		return
 	}
+	root, err := os.OpenRoot(to)
+	if err != nil {
+		return
+	}
+	defer root.Close()
 
 	dirs := map[string]bool{}
-
-	for _, pair := range pairs {
-		_ = os.Remove(pair.dst + moveSuffix)
-
-		if slices.Contains(placed, pair.rel) && isRegular(pair.dst) {
-			_ = os.Remove(pair.dst)
+	for _, path := range paths {
+		_ = root.Remove(path + moveSuffix)
+		if slices.Contains(placed, path) {
+			if item, err := root.Lstat(path); err == nil && item.Mode().IsRegular() {
+				_ = root.Remove(path)
+			}
 		}
-
-		addParentDirs(dirs, to, pair.dst)
+		addParentDirs(dirs, ".", path)
 	}
 
-	_ = removeEmptyDirs(dirs, os.Remove)
+	_ = removeEmptyDirs(dirs, root.Remove)
 }
 
 // Удаляет исходники, у которых есть файл в новом каталоге, и опустевшие
 // каталоги раздачи в старом
 func removeSources(info *metainfo.Info, from, to string) error {
-	pairs, err := movePairs(info, from, to)
+	paths, err := movePaths(info)
 	if err != nil {
 		return err
 	}
+	source, err := os.OpenRoot(from)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+	destination, err := os.OpenRoot(to)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
 
 	var errs []error
 	dirs := map[string]bool{}
-
-	for _, pair := range pairs {
-		src, dst := pair.src, pair.dst
-
-		if isRegular(src) && isRegular(dst) {
-			if err := os.Remove(src); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	for _, path := range paths {
+		src, srcErr := source.Lstat(path)
+		dst, dstErr := destination.Lstat(path)
+		if srcErr == nil && dstErr == nil && src.Mode().IsRegular() && dst.Mode().IsRegular() {
+			if err := source.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				errs = append(errs, err)
 			}
 		}
-
-		addParentDirs(dirs, from, src)
+		addParentDirs(dirs, ".", path)
 	}
 
-	errs = append(errs, removeEmptyDirs(dirs, os.Remove))
-
+	errs = append(errs, removeEmptyDirs(dirs, source.Remove))
 	return errors.Join(errs...)
 }
 
@@ -867,7 +880,7 @@ func (a *api) finishMove(hash metainfo.Hash, info *metainfo.Info, dir string, sa
 	}
 
 	if saved.MovingTo != "" && !samePath(saved.MovingTo, dir) {
-		removePlaced(info, dir, saved.MovingTo, saved.Placed)
+		removePlaced(info, saved.MovingTo, saved.Placed)
 	}
 
 	if saved.MovedFrom != "" && !samePath(saved.MovedFrom, dir) {

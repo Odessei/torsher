@@ -17,7 +17,10 @@ func fileHoles(path string) ([]extent, error) {
 		return nil, err
 	}
 	defer f.Close()
+	return fileHolesOf(f)
+}
 
+func fileHolesOf(f *os.File) ([]extent, error) {
 	stat, err := f.Stat()
 	if err != nil {
 		return nil, err

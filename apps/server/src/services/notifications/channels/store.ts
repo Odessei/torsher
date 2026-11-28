@@ -13,6 +13,7 @@ import {
 } from '../../secrets/index.ts'
 import { providerOf } from './index.ts'
 import { DeliveryError } from './types.ts'
+import { withoutTrailingSlashes } from '../url.ts'
 
 export interface ChannelInput {
   kind: NotificationChannel['kind']
@@ -240,7 +241,7 @@ function rowValues(input: ChannelInput, previous?: NotificationChannel) {
     name: input.name.trim(),
     enabled: input.enabled,
     language: input.language,
-    panelUrl: input.panelUrl?.trim().replace(/\/+$/, '') || null,
+    panelUrl: withoutTrailingSlashes(input.panelUrl?.trim() ?? '') || null,
     config: encryptConfig(provider, config),
     events: [...new Set(input.events)],
     includeWarnings: input.includeWarnings,

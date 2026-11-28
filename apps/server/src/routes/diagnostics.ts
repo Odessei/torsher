@@ -83,7 +83,7 @@ export const diagnosticRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     (request) => {
       setSetting('userActionDiagnostics', request.body.enabled)
-      return request.body
+      return { enabled: request.body.enabled }
     },
   )
   app.post(

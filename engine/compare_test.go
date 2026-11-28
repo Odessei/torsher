@@ -80,7 +80,12 @@ func TestCompareReadFailureAndCancellationBlock(t *testing.T) {
 	if err := os.Truncate(path, 1); err != nil {
 		t.Fatal(err)
 	}
-	state, err := compareFile(context.Background(), info, path, 0, info.Length, info.Length, make([]byte, info.PieceLength))
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	state, err := compareFile(context.Background(), root, info, filepath.Base(path), 0, info.Length, info.Length, make([]byte, info.PieceLength))
 	if !errors.Is(err, io.EOF) || state != "" {
 		t.Fatalf("state=%q err=%v", state, err)
 	}

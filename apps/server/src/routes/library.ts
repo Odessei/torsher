@@ -18,6 +18,7 @@ import {
 } from '../services/library/home.ts'
 import { cachedThumb } from '../services/library/thumbs.ts'
 import { sendLibraryFile } from '../services/library/stream.ts'
+import { ipRateLimit } from '../utils/rateLimit.ts'
 
 export { parseRange } from '../services/library/stream.ts'
 
@@ -29,7 +30,7 @@ export const libraryRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/files/:id/stream',
     {
-      onRequest: requireStream,
+      onRequest: [ipRateLimit(1200), requireStream],
       schema: {
         // Бинарный ответ: в OpenAPI и generated-клиенте роут не нужен
         hide: true,

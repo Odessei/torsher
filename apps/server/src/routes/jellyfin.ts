@@ -54,6 +54,7 @@ import {
 import { fetchTmdbImage } from '../services/tmdb/index.ts'
 import { isWatched } from '../services/torrents/playback.ts'
 import { verifyOwnerCredentials } from '../services/users/credentials.ts'
+import { ipRateLimit } from '../utils/rateLimit.ts'
 
 const PLAYBACK_CONTEXT_LIMIT = 256
 const PLAYBACK_CONTEXT_IDLE_MS = 2 * 60 * 1000
@@ -101,6 +102,7 @@ async function projectPlaybackItem(
 
 /** Exact routes only: the native API and showcase SPA keep their own namespace. */
 export const jellyfinRoutes: FastifyPluginAsyncZod = async (app) => {
+  app.addHook('onRequest', ipRateLimit(1200))
   const schema = { hide: true, querystring: query, params }
   const playbacks = new Map<string, PlaybackContext>()
   function keepPlayback(

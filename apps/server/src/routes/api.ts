@@ -40,10 +40,10 @@ import { transferRoutes } from './transfer.ts'
 import { updateRoutes } from './updates.ts'
 import { usenetOwnerRoutes, usenetViewerRoutes } from './usenet.ts'
 import { userRoutes } from './users.ts'
-import { createRateLimiter } from '../utils/rateLimit.ts'
+import { ipRateLimit } from '../utils/rateLimit.ts'
 
 export const apiRoutes: FastifyPluginAsyncZod = async (app) => {
-  const requestLimit = createRateLimiter({ limit: 600, windowMs: 60_000 })
+  const requestLimit = ipRateLimit(600)
   app.addHook('onRequest', async (request, reply) => {
     const path = request.routeOptions.url
     if (
@@ -56,12 +56,7 @@ export const apiRoutes: FastifyPluginAsyncZod = async (app) => {
       return
     }
 
-    if (!requestLimit.hit(request.ip)) {
-      return reply
-        .header('Retry-After', requestLimit.retryAfter(request.ip))
-        .code(429)
-        .send({ message: 'Too many API requests' })
-    }
+    return requestLimit.call(app, request, reply)
   })
 
   app.get(

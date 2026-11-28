@@ -666,7 +666,7 @@ describe('связыватель', () => {
       Object.assign(new Error('EXDEV'), { code: 'EXDEV' }),
     )
     vi.spyOn(linkDeps, 'copyFile').mockImplementation(async (a, b, mode) => {
-      if (mode === constants.COPYFILE_FICLONE_FORCE)
+      if (((mode ?? 0) & constants.COPYFILE_FICLONE_FORCE) !== 0)
         throw Object.assign(new Error('ENOTSUP'), { code: 'ENOTSUP' })
       await copyFile(a, b)
     })

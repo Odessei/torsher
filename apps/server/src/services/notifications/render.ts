@@ -11,6 +11,7 @@ import {
   messages,
   translate,
 } from '@torsher/i18n'
+import { withoutTrailingSlashes } from './url.ts'
 
 /** Сообщение для внешнего канала: провайдер раскладывает его в свой формат */
 export interface RenderedMessage {
@@ -84,7 +85,7 @@ export function sectionUrl(
   if (!panelUrl)
     return undefined
 
-  const base = panelUrl.replace(/\/+$/, '')
+  const base = withoutTrailingSlashes(panelUrl)
   const path = section
     ? sectionPaths[section as NotificationSection]
     : undefined

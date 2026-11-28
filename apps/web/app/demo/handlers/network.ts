@@ -317,8 +317,9 @@ function targets() {
 function resultFor(url: URL, at: number): HostResult {
   const known
     = url.hostname.endsWith('.example')
-      || url.hostname.endsWith('tmdb.org')
-      || url.hostname.endsWith('themoviedb.org')
+      || ['tmdb.org', 'themoviedb.org'].some(
+        domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+      )
   const seed = [...url.host].reduce((sum, char) => sum + char.charCodeAt(0), 0)
 
   return {
