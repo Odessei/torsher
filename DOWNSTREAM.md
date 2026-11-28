@@ -26,3 +26,8 @@ commits for credentials and database files.
 Set `TORSHER_COMPLETE_TORRENT_ON_PLAYBACK=1` in the server environment to keep
 and complete the selected torrent in the background when its player opens.
 Playback keeps its normal streaming behavior when there is insufficient space.
+
+Set `TORSHER_DEPRIORITIZED_INDEXERS` to a comma-separated list of indexer names
+to show their exclusive results last in the viewer's source list. Names are
+matched case-insensitively. Releases also available from an indexer outside the
+list retain their normal position. Remove the setting to restore normal order.

@@ -127,6 +127,31 @@ afterEach(() => {
 })
 
 describe('get /api/titles/:id/sources', () => {
+  it('lists exclusive results from deprioritized indexers after shared results', async () => {
+    vi.stubEnv('TORSHER_DEPRIORITIZED_INDEXERS', ' INDEXER a ,')
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input, init) =>
+      new URL(String(input)).hostname === 'b.indexer.example'
+        ? new Response(searchXml.replace(/<item>\s*<title>Quiet\.Harbor[\s\S]*?<\/item>/, ''))
+        : original(input, init),
+    )
+    const response = await app.inject({
+      url: '/api/titles/tmdb:tv:101/sources?season=2',
+      cookies: authed(),
+    })
+    expect(response.statusCode).toBe(200)
+    const { candidates } = response.json()
+    expect(candidates).toHaveLength(2)
+    expect(candidates[0].indexers).toEqual(
+      expect.arrayContaining(['Indexer A', 'Indexer B']),
+    )
+    expect(candidates[0].deprioritized).toBeUndefined()
+    expect(candidates[1]).toMatchObject({
+      indexers: ['Indexer A'],
+      deprioritized: true,
+    })
+  })
+
   it('явное 1080p сильнее UHD без infohash при поиске и чтении кэша', async () => {
     const original = fetchMock.getMockImplementation()!
     fetchMock.mockImplementation(async (input, init) =>

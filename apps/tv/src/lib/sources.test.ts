@@ -96,6 +96,28 @@ const sources: TitleSources = {
 describe('arrangeCandidates', () => {
   const ids = (list: SourceCandidate[]) => list.map(item => item.id)
 
+  it.each(['best', 'seasons', 'seeders', 'size', 'date'] as const)(
+    'keeps deprioritized indexers last with %s sorting',
+    (sort) => {
+      const list = [
+        candidate('deferred', {
+          deprioritized: true,
+          lastWatched: true,
+          pickReason: 'profile',
+          seeders: 1000,
+          size: 1e9,
+          seasons: [5],
+          publishedAt: '2026-11-28T12:00:00Z',
+        }),
+        candidate('shared'),
+      ]
+      expect(ids(arrangeCandidates(list, { sort }))).toEqual([
+        'shared',
+        'deferred',
+      ])
+    },
+  )
+
   it('порядок сервера и фильтры озвучки и качества', () => {
     // Лучшая по профилю — первой, даже если сервер поставил её второй
     expect(

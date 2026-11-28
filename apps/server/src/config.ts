@@ -102,6 +102,15 @@ export const config = {
     return process.env.TORSHER_ACCOUNT_QUOTA_FILE?.trim() || undefined
   },
 
+  get deprioritizedIndexers() {
+    return new Set(
+      (process.env.TORSHER_DEPRIORITIZED_INDEXERS ?? '')
+        .split(',')
+        .map(name => name.trim().toLowerCase())
+        .filter(Boolean),
+    )
+  },
+
   get completeTorrentOnPlayback() {
     return ON.includes(
       process.env.TORSHER_COMPLETE_TORRENT_ON_PLAYBACK?.trim().toLowerCase()
