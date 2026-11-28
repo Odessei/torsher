@@ -85,6 +85,7 @@ def main():
     parser.add_argument("--pr", type=int)
     parser.add_argument("--old-digest", required=True)
     parser.add_argument("--candidate-digest", required=True)
+    parser.add_argument("--service", choices=("traefik", "torsher"), default="traefik")
     parser.add_argument("--torsher-container", default="torsher-torsher-1")
     parser.add_argument("--traefik-container", default="traefik")
     source = parser.add_mutually_exclusive_group()
@@ -113,10 +114,11 @@ def main():
                     if any(values.values()) else "awaiting_approval")
     except (subprocess.SubprocessError, OSError, ValueError):
         decision = "deferred_activity_unverified"
-    journal.write("release_gate", service="traefik", container=args.traefik_container, sha=args.sha, pr=args.pr,
+    target = args.traefik_container if args.service == "traefik" else args.torsher_container
+    journal.write("release_gate", service=args.service, container=target, sha=args.sha, pr=args.pr,
                   oldDigest=args.old_digest, candidateDigest=args.candidate_digest,
                   activity=values, decision=decision)
-    journal.summarize(f"traefik release gate: {decision}; report only")
+    journal.summarize(f"{args.service} release gate: {decision}; report only")
     print(decision)
 
 

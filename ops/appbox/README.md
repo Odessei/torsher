@@ -58,6 +58,27 @@ still change the byte-level output of an independent rebuild.
 
 ## Pilot and rollout
 
+Run the Appbox security workflow manually with `package_source` set to a
+reviewed full commit from main. The package contains OCI and Docker exports
+from one build. Check the artifact and archive SHA-256 values. Use
+`rollout.py verify-package` to verify the selected OCI manifest, all layers
+and the shared image config before loading the image. The image ID reported
+by a runner with the containerd store can be the manifest digest. Check the
+expected config and revision against the loaded image on the target.
+
+For the owner-only proxy, prepare the new file-provider configuration from
+the live routing settings with `proxy_config.py`. Preserve the allowlist,
+trusted forwarding, loopback published port and shared backend network.
+Mount the new configuration directory read-only and omit the Docker socket.
+Use the old image and launch configuration for rollback. The public example
+values in the pilot are for its isolated test only.
+
+`compose.logging.json` is an opt-in overlay for the four managed services.
+Render Compose before use and inspect its logging settings after the approved
+recreation. Before setting CPU, memory or PID limits, verify the runtime cgroup
+driver and controllers. Compose configuration alone does not prove that a
+limit is enforced.
+
 `pilot.py` checks the pinned Traefik candidate in an isolated network
 namespace. On Appbox it starts the previous local digest against the same
 fixture to check rollback. The fixture covers trusted access, outside denial

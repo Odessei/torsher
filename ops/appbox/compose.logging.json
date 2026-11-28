@@ -1,0 +1,16 @@
+{
+  "services": {
+    "torsher": {
+      "logging": { "driver": "json-file", "options": { "max-size": "20m", "max-file": "3" } }
+    },
+    "flaresolverr": {
+      "logging": { "driver": "json-file", "options": { "max-size": "10m", "max-file": "3" } }
+    },
+    "jackett": {
+      "logging": { "driver": "json-file", "options": { "max-size": "10m", "max-file": "3" } }
+    },
+    "prowlarr": {
+      "logging": { "driver": "json-file", "options": { "max-size": "10m", "max-file": "3" } }
+    }
+  }
+}

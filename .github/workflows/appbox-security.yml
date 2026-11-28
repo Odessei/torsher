@@ -33,6 +33,7 @@ jobs:
           set -euo pipefail
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+          cp ops/appbox/rollout.py "$RUNNER_TEMP/verify-rollout.py"
           git checkout --detach "$SOURCE_SHA"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           version=$(node -p "require('./apps/server/package.json').version")
@@ -48,6 +49,7 @@ jobs:
             --output "type=docker,dest=$package/image.docker.tar" .
           docker load --input "$package/image.docker.tar"
           docker image inspect --format '{{.Id}}' "$image" > "$package/config-id.txt"
+          python3 "$RUNNER_TEMP/verify-rollout.py" verify-package "$package" "$SOURCE_SHA"
           docker run --rm --network none --entrypoint sh "$image" \
             -c 'test -x /usr/local/bin/torsher-engine && test -f /app/tv/dist/index.html && test -f /app/web/.output/public/index.html'
           cd "$package"
