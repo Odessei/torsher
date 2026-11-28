@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	g "github.com/anacrolix/generics"
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/metainfo"
@@ -150,7 +151,7 @@ func TestPrivateTrackerChecksAdmissionAndPersistsVerifiedCompletion(t *testing.T
 	live, _ := a.client.Torrent(hash)
 	key := metainfo.PieceKey{InfoHash: hash, Index: 0}
 	for _, complete := range []bool{false, true} {
-		if err := a.completion.Set(key, complete); err != nil {
+		if err := a.completion.Set(key, g.Some(complete)); err != nil {
 			t.Fatal(err)
 		}
 		live.Piece(0).UpdateCompletion()

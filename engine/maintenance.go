@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	g "github.com/anacrolix/generics"
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/anacrolix/torrent/storage"
@@ -621,7 +622,7 @@ func (a *api) maintenancePrepare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for index := 0; index < manifest.PieceCount; index++ {
-		if err := a.completion.Set(metainfo.PieceKey{InfoHash: hash, Index: index}, false); err != nil {
+		if err := a.completion.Set(metainfo.PieceKey{InfoHash: hash, Index: index}, g.Some(false)); err != nil {
 			writeError(w, 500, "completion_reset_failed", errors.New("cannot reset piece completion"))
 			return
 		}
@@ -925,7 +926,7 @@ func (a *api) reattachMaintenance(fence *detachFence) error {
 		return err
 	}
 	for i := 0; i < info.NumPieces(); i++ {
-		if err := a.completion.Set(metainfo.PieceKey{InfoHash: meta.HashInfoBytes(), Index: i}, false); err != nil {
+		if err := a.completion.Set(metainfo.PieceKey{InfoHash: meta.HashInfoBytes(), Index: i}, g.Some(false)); err != nil {
 			pinned.Close()
 			return err
 		}

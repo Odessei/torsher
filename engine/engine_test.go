@@ -733,7 +733,7 @@ func TestVerifiedPiecesAreCompleteOnReturn(t *testing.T) {
 	added, _ := engine.client.Torrent(fx.meta.HashInfoBytes())
 
 	for round := range 5 {
-		var pieces []*torrent.Piece
+		var pieces []torrent.Piece
 		for index := range added.NumPieces() {
 			piece := added.Piece(index)
 			if err := piece.Storage().MarkNotComplete(); err != nil {

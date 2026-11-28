@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	g "github.com/anacrolix/generics"
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/anacrolix/torrent/storage"
 )
@@ -135,10 +136,10 @@ func (p maintenancePinnedPiece) MarkComplete() error {
 			}
 		}
 	}
-	return p.s.completion.Set(metainfo.PieceKey{InfoHash: p.s.hash, Index: p.piece.Index()}, true)
+	return p.s.completion.Set(metainfo.PieceKey{InfoHash: p.s.hash, Index: p.piece.Index()}, g.Some(true))
 }
 func (p maintenancePinnedPiece) MarkNotComplete() error {
-	return p.s.completion.Set(metainfo.PieceKey{InfoHash: p.s.hash, Index: p.piece.Index()}, false)
+	return p.s.completion.Set(metainfo.PieceKey{InfoHash: p.s.hash, Index: p.piece.Index()}, g.Some(false))
 }
 func (p maintenancePinnedPiece) Completion() storage.Completion {
 	result, err := p.s.completion.Get(metainfo.PieceKey{InfoHash: p.s.hash, Index: p.piece.Index()})
