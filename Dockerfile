@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
 # Торрент-движок (engine/, Go): собирается на платформе сборщика под целевую
 # архитектуру без cgo — статический бинарник, эмуляция не нужна. Лицензии
