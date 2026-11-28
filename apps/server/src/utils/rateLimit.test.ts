@@ -41,4 +41,16 @@ describe('createRateLimiter', () => {
     limiter.reset('a')
     expect(limiter.isLimited('a', 10)).toBe(false)
   })
+
+  it('starts a fresh window when the clock moves backwards', () => {
+    const limiter = createRateLimiter({ limit: 1, windowMs: 60_000 })
+
+    expect(limiter.hit('a', 120_000)).toBe(true)
+    expect(limiter.hit('a', 120_010)).toBe(false)
+    expect(limiter.isLimited('a', 10_000)).toBe(false)
+    expect(limiter.retryAfter('a', 10_000)).toBe(0)
+    expect(limiter.hit('a', 10_000)).toBe(true)
+    expect(limiter.hit('a', 10_010)).toBe(false)
+    expect(limiter.hit('a', 70_000)).toBe(true)
+  })
 })
