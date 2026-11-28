@@ -67,6 +67,12 @@ export const guestRoutes: FastifyPluginAsyncZod = async (app) => {
   })
 
   app.post('/api/guest/claim', {
+    async onRequest(request, reply) {
+      if (!isGuestRequest(request))
+        return reply.code(404).send()
+      if (request.headers.origin !== `https://${guestHost()}`)
+        return reply.code(403).send()
+    },
     schema: {
       body: z.union([
         z.strictObject({ token: inviteToken, code: z.string().min(6).max(12) }),
@@ -74,10 +80,6 @@ export const guestRoutes: FastifyPluginAsyncZod = async (app) => {
       ]),
     },
   }, (request, reply) => {
-    if (!isGuestRequest(request))
-      return reply.code(404).send()
-    if (request.headers.origin !== `https://${guestHost()}`)
-      return reply.code(403).send()
     reply.header('Cache-Control', 'no-store')
 
     const claim = request.body

@@ -1552,6 +1552,7 @@ it('audits every root and /emby protected route, including HEAD, before validati
     '/Users/Public',
     '/Users/AuthenticateByName',
   ])
+  const guestOnlyPaths = new Set(['/activate', '/activate.js'])
   expect(routes.length).toBeGreaterThan(80)
   for (const route of routes) {
     if (publicPaths.has(route.url.replace(/^\/emby/, '')))
@@ -1563,7 +1564,7 @@ it('audits every root and /emby protected route, including HEAD, before validati
     expect(
       response.statusCode,
       `${route.method} ${route.url}: ${response.body}`,
-    ).toBe(401)
+    ).toBe(guestOnlyPaths.has(route.url) ? 404 : 401)
   }
   expect(
     (await app.inject({ url: '/emby/NotImplemented', headers: auth() }))
