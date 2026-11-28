@@ -3,7 +3,7 @@
 # Торрент-движок (engine/, Go): собирается на платформе сборщика под целевую
 # архитектуру без cgo — статический бинарник, эмуляция не нужна. Лицензии
 # всех вошедших в него Go-модулей кладутся рядом
-FROM --platform=$BUILDPLATFORM golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac AS engine
+FROM --platform=$BUILDPLATFORM golang:1.26.11-bookworm@sha256:ea47ee45f1284d60f9cc09cb2c3bb4f508c256b640bd8bb30342ff13d1adcb52 AS engine
 ARG TARGETARCH
 WORKDIR /src
 COPY engine/go.mod engine/go.sum ./

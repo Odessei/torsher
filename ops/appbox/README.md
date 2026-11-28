@@ -34,6 +34,10 @@ Run the systemd user timer in report-only mode. The journal lives under
 errors and decisions. Both rotate after 5 MiB with six archives. The user
 systemd journal retains unit exit status. Critical findings appear locally in
 the JSONL report. External alert delivery awaits the owner's channel choice.
+Install the pinned scanner with `bash ops/appbox/install-security-tools.sh --appbox`.
+The user units are `appbox-security.service` and `appbox-security.timer`.
+The image scanner records the database timestamp and fails on a missing,
+invalid or more than 48-hour-old vulnerability database.
 
 Findings count scanner records. Correlate duplicates and verify the affected
 feature against the vendor advisory before assigning an operational priority.

@@ -125,6 +125,28 @@ func TestDeletePreviewCandidates(t *testing.T) {
 	}
 }
 
+func TestDeleteTorrentFilesConfinesSymlinkedParent(t *testing.T) {
+	downloads, outside := t.TempDir(), t.TempDir()
+	file := filepath.Join(outside, "fixture.mkv")
+	if err := os.WriteFile(file, []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(downloads, "pack")); err != nil {
+		t.Fatal(err)
+	}
+	info := &metainfo.Info{Name: "pack", Files: []metainfo.FileInfo{
+		{Path: []string{"fixture.mkv"}, Length: 4},
+	}}
+	freed, err := deleteTorrentFiles(downloads, info)
+	if err == nil || freed != 0 {
+		t.Fatalf("expected a storage boundary error, got %d / %v", freed, err)
+	}
+	content, err := os.ReadFile(file)
+	if err != nil || string(content) != "keep" {
+		t.Fatalf("external file changed: %v", err)
+	}
+}
+
 func TestDeletePreviewEndpointDoesNotMutate(t *testing.T) {
 	fx := newNamedFixture(t, "Delete.Preview.mkv", 32769)
 	dataDir := t.TempDir()

@@ -29,6 +29,7 @@ HOST_PACKAGES = (
 )
 MAX_LOG_BYTES = 5 * 1024 * 1024
 KEEP_LOGS = 6
+MAX_DB_AGE = datetime.timedelta(hours=48)
 
 
 def run(*command, timeout=30):
@@ -109,11 +110,32 @@ def image_inventory():
         }
 
 
+class VulnerabilityDatabaseError(ValueError):
+    pass
+
+
+def database_timestamp(cache, now=None):
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    try:
+        metadata = json.loads((cache / "db" / "metadata.json").read_text(encoding="utf-8"))
+        updated = datetime.datetime.fromisoformat(metadata["UpdatedAt"])
+        if not updated.tzinfo or not -datetime.timedelta(minutes=5) <= now - updated <= MAX_DB_AGE:
+            raise ValueError("Vulnerability database timestamp is stale or invalid")
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise VulnerabilityDatabaseError("Missing, invalid or stale Trivy vulnerability database") from error
+    return updated.isoformat()
+
+
 def report(command, trivy, cache, output, target):
     run(trivy, "--cache-dir", str(cache), *command, "--scanners", "vuln",
         "--no-progress", "--parallel", "1", "--format", "json",
         "--output", str(output), "--timeout", "8m", target, timeout=510)
-    return json.loads(output.read_text(encoding="utf-8"))
+    updated = database_timestamp(cache)
+    data = json.loads(output.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("SchemaVersion") != 2:
+        raise ValueError("Trivy did not return scan results")
+    data["databaseUpdatedAt"] = updated
+    return data
 
 
 def findings(data):
@@ -124,14 +146,34 @@ def findings(data):
                 continue
             severity = item.get("Severity", "UNKNOWN")
             fixed = item.get("FixedVersion") or ""
+            identities = {vuln}
+            for field in ("VendorIDs", "Aliases"):
+                values = item.get(field)
+                if isinstance(values, list):
+                    identities.update(x for x in values if isinstance(x, str) and ADVISORY.fullmatch(x))
             yield {
                 "advisory": vuln,
-                "package": version(item.get("PkgName")),
+                "aliases": sorted(identities - {vuln}),
+                "package": package_name(item.get("PkgName")),
                 "installed": version(item.get("InstalledVersion")),
                 "fixed": [v for value in fixed.split(",") if (v := version(value.strip()))],
                 "hasFix": bool(fixed),
                 "severity": severity if severity in LEVELS else "UNKNOWN",
             }
+
+
+def package_name(value):
+    return value if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9@/._+-]{1,200}", value) else None
+
+
+def finding_priority(hit, exploited, exposed):
+    identities = (hit["advisory"], *hit.get("aliases", ()))
+    kev = None if exploited is None else any(identity in exploited for identity in identities)
+    if kev and exposed and hit["hasFix"]:
+        return "urgent_review", kev
+    if kev or hit["severity"] in ("CRITICAL", "HIGH"):
+        return "expedited_review", kev
+    return "review", kev
 
 
 def artifact_checksum(path):
@@ -214,20 +256,19 @@ def scan_once(args, journal):
                         high += sum(i["severity"] in ("HIGH", "CRITICAL") for i in hits)
                         journal.write("scan_result", service=service, version=meta["version"],
                                       imageId=meta["imageId"], manifestDigests=meta["manifestDigests"],
-                                      kind=kind, counts=counts,
+                                      kind=kind, counts=counts, databaseUpdatedAt=data["databaseUpdatedAt"],
                                       results=len(data.get("Results") or []),
                                       decision="review_findings" if hits else "no_findings")
                         for hit in hits:
-                            kev = None if exploited is None else hit["advisory"] in exploited
                             exposed = meta["exposure"] != "internal-or-unclassified" or meta["publishedBindings"]
-                            priority = (
-                                "urgent_review" if kev and exposed and hit["hasFix"]
-                                else "expedited_review" if kev or hit["severity"] in ("CRITICAL", "HIGH")
-                                else "review"
-                            )
+                            priority, kev = finding_priority(hit, exploited, exposed)
                             journal.write("finding", service=service, imageId=meta["imageId"],
                                           kind=kind, priority=priority, knownExploited=kev,
                                           exposure=meta["exposure"], **hit)
+                    except VulnerabilityDatabaseError:
+                        errors += 1
+                        journal.write("scan_error", service=service, kind=kind,
+                                      reason="stale_or_missing_vulnerability_database")
                     except (subprocess.SubprocessError, OSError, ValueError):
                         errors += 1
                         journal.write("scan_error", service=service, kind=kind,

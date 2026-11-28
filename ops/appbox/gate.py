@@ -10,7 +10,7 @@ import stat
 import subprocess
 import sys
 
-from security import DIGEST, Journal, run
+from security import DIGEST, Journal
 
 RECENT_WINDOW = "180s"
 READ_ACTIVITY = """
@@ -53,8 +53,17 @@ def recent_playback(log):
     return False
 
 
-def activity(cookie):
-    target = "torsher-torsher-1"
+def read_cookie(path):
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as stream:
+        metadata = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.geteuid()
+                or metadata.st_mode & 0o077):
+            raise ValueError("cookie file must be private and owned by this user")
+        return stream.read(8193)
+
+
+def activity(cookie, target="torsher-torsher-1"):
     response = subprocess.run(
         ("docker", "exec", "-i", target, "node", "-e", READ_ACTIVITY),
         input=cookie, capture_output=True, timeout=12, check=True,
@@ -76,6 +85,8 @@ def main():
     parser.add_argument("--pr", type=int)
     parser.add_argument("--old-digest", required=True)
     parser.add_argument("--candidate-digest", required=True)
+    parser.add_argument("--torsher-container", default="torsher-torsher-1")
+    parser.add_argument("--traefik-container", default="traefik")
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--stdin", action="store_true")
     source.add_argument("--cookie-file", type=Path)
@@ -84,6 +95,9 @@ def main():
         parser.error("expected a full source commit")
     if not all(DIGEST.fullmatch(x) for x in (args.old_digest, args.candidate_digest)):
         parser.error("expected pinned digests")
+    if not all(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name)
+               for name in (args.torsher_container, args.traefik_container)):
+        parser.error("expected Docker container names")
     journal = Journal(args.state)
     values = {}
     try:
@@ -91,18 +105,15 @@ def main():
         if args.stdin:
             cookie = sys.stdin.buffer.read(8193)
         elif args.cookie_file:
-            mode = args.cookie_file.stat().st_mode
-            if stat.S_ISREG(mode) and mode & 0o077 == 0 and not args.cookie_file.is_symlink():
-                with args.cookie_file.open("rb") as stream:
-                    cookie = stream.read(8193)
+            cookie = read_cookie(args.cookie_file)
         if not cookie or len(cookie) > 8192:
             raise ValueError("activity credentials unavailable")
-        values = activity(cookie)
+        values = activity(cookie, args.torsher_container)
         decision = ("deferred_active_viewing"
                     if any(values.values()) else "awaiting_approval")
     except (subprocess.SubprocessError, OSError, ValueError):
         decision = "deferred_activity_unverified"
-    journal.write("release_gate", service="traefik", sha=args.sha, pr=args.pr,
+    journal.write("release_gate", service="traefik", container=args.traefik_container, sha=args.sha, pr=args.pr,
                   oldDigest=args.old_digest, candidateDigest=args.candidate_digest,
                   activity=values, decision=decision)
     journal.summarize(f"traefik release gate: {decision}; report only")

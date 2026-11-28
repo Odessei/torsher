@@ -15,18 +15,18 @@ jobs:
   github-journal:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Verify GitHub evidence and Appbox reconciliation
-        run: python3 -m unittest discover -s ops/appbox -p test_github_journal.py
+        run: python3 -m unittest discover -s ops/appbox
 
   dependencies:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -37,23 +37,48 @@ jobs:
           status=0
           "$RUNNER_TEMP/appbox-tools/osv-scanner" scan source --recursive --format json --output-file "$RUNNER_TEMP/osv.json" . || status=$?
           if [ "$status" -gt 1 ]; then exit "$status"; fi
-          python3 - "$RUNNER_TEMP/osv.json" <<'PY'
+          python3 - "$RUNNER_TEMP/osv.json" "$RUNNER_TEMP/dependency-findings.json" <<'PY'
           import json
+          import subprocess
           import sys
-          data = json.load(open(sys.argv[1]))
-          found = {v["id"] for result in data.get("results", [])
-                   for package in result.get("packages", [])
-                   for v in package.get("vulnerabilities", [])}
-          print("OSV unique advisories:", len(found))
-          for advisory in sorted(found):
+          sys.path.insert(0, "ops/appbox")
+          from security import ADVISORY, package_name, version
+          with open(sys.argv[1]) as source:
+              data = json.load(source)
+          records = {}
+          for result in data.get("results") or []:
+              for entry in result.get("packages") or []:
+                  package = entry["package"]
+                  name, installed = package_name(package.get("name")), version(package.get("version"))
+                  for vulnerability in entry.get("vulnerabilities") or []:
+                      advisory = vulnerability["id"]
+                      aliases = [item for item in vulnerability.get("aliases") or []
+                                 if ADVISORY.fullmatch(item)]
+                      if ADVISORY.fullmatch(advisory) or aliases:
+                          advisory = advisory if ADVISORY.fullmatch(advisory) else aliases[0]
+                          records[(advisory, name, installed)] = {
+                              "advisory": advisory, "aliases": sorted(set(aliases) - {advisory}),
+                              "package": name, "installed": installed,
+                          }
+          found = sorted({key[0] for key in records})
+          sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          with open(sys.argv[2], "w") as output:
+              json.dump({"check": "osv", "sha": sha, "findings": list(records.values())}, output, indent=2)
+          print("OSV unique CVE/GHSA advisories:", len(found))
+          for advisory in found:
               print(advisory)
           PY
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-findings
+          path: ${{ runner.temp }}/dependency-findings.json
+          if-no-files-found: error
+
   traefik-pilot:
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -72,14 +97,13 @@ jobs:
 
   compose-images:
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
     timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
         service: [torsher, prowlarr, jackett, flaresolverr]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -103,24 +127,20 @@ jobs:
           tagged=${image%@*}
           pinned="${tagged%:*}@${image##*@}"
           docker pull --platform linux/amd64 "$pinned"
-          id=$(docker image inspect --format '{{.Id}}' "$pinned")
-          "$RUNNER_TEMP/appbox-tools/trivy" image --image-src docker --scanners vuln \
-            --no-progress --format json --output "$RUNNER_TEMP/compose-image.json" "$id"
-          python3 - "$RUNNER_TEMP/compose-image.json" <<'PY'
-          import collections
-          import json
-          import sys
-          with open(sys.argv[1]) as f:
-              data = json.load(f)
-          print(collections.Counter(v['Severity'] for target in data.get('Results', [])
-                                    for v in target.get('Vulnerabilities') or []))
-          PY
+          python3 ops/appbox/scan_ci_image.py --image "$pinned" --manifest-digest "${image##*@}" \
+            --trivy "$RUNNER_TEMP/appbox-tools/trivy" --output "$RUNNER_TEMP/compose-image.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-compose-${{ matrix.service }}
+          path: ${{ runner.temp }}/compose-image.json
+          if-no-files-found: error
 
   fork-image:
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -129,16 +149,13 @@ jobs:
         run: |
           bash ops/appbox/install-security-tools.sh "$RUNNER_TEMP/appbox-tools"
           docker buildx build --platform linux/amd64 --load --tag appbox-torsher-candidate --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" .
-          id=$(docker image inspect --format '{{.Id}}' appbox-torsher-candidate)
-          "$RUNNER_TEMP/appbox-tools/trivy" image --image-src docker --scanners vuln \
-            --no-progress --format json --output "$RUNNER_TEMP/fork-image.json" "$id"
-          echo "Candidate image ID $id"
-          python3 - "$RUNNER_TEMP/fork-image.json" <<'PY'
-          import collections
-          import json
-          import sys
-          data = json.load(open(sys.argv[1]))
-          print(collections.Counter(v["Severity"] for r in data.get("Results", []) for v in r.get("Vulnerabilities") or []))
-          PY
+          python3 ops/appbox/scan_ci_image.py --image appbox-torsher-candidate --sqlite \
+            --trivy "$RUNNER_TEMP/appbox-tools/trivy" --output "$RUNNER_TEMP/fork-image.json"
           docker run --rm --network none --entrypoint sh appbox-torsher-candidate \
             -c 'test -x /usr/local/bin/torsher-engine && test -f /app/tv/dist/index.html && test -f /app/web/.output/public/index.html'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fork-image
+          path: ${{ runner.temp }}/fork-image.json
+          if-no-files-found: error

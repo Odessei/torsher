@@ -165,6 +165,7 @@ function inject(
     method: route.method,
     url: route.url.replace(/:\w+/g, '0'),
     cookies,
+    remoteAddress: '192.0.2.10',
   })
 }
 

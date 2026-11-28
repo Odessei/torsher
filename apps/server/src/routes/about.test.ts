@@ -13,6 +13,44 @@ afterEach(() => {
 })
 
 describe('get /api/about', () => {
+  it('limits repeated API calls per client while keeping health checks available', async () => {
+    const limited = createApp()
+    try {
+      for (let index = 0; index < 600; index++) {
+        const response = await limited.inject({
+          url: '/api/about',
+          remoteAddress: '192.0.2.1',
+        })
+        expect(response.statusCode).toBe(200)
+      }
+      const response = await limited.inject({
+        url: '/api/about',
+        remoteAddress: '192.0.2.1',
+      })
+      expect(response.statusCode).toBe(429)
+      expect(Number(response.headers['retry-after'])).toBeGreaterThan(0)
+      expect(
+        (
+          await limited.inject({
+            url: '/api/about',
+            remoteAddress: '192.0.2.2',
+          })
+        ).statusCode,
+      ).toBe(200)
+      expect(
+        (
+          await limited.inject({
+            url: '/api/health',
+            remoteAddress: '192.0.2.1',
+          })
+        ).statusCode,
+      ).toBe(200)
+    }
+    finally {
+      await limited.close()
+    }
+  })
+
   it('отдаёт версию, лицензию и исходники без авторизации', async () => {
     vi.stubEnv('TORSHER_COMMIT', 'abc1234')
 
