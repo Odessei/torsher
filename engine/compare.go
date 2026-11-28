@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/anacrolix/torrent/storage"
@@ -33,6 +32,17 @@ const (
 func compareOnDisk(ctx context.Context, info *metainfo.Info, dir string) ([]string, error) {
 	files := info.UpvertedFiles()
 	states := make([]string, len(files))
+	root, err := os.OpenRoot(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		for i := range states {
+			states[i] = diskMissing
+		}
+		return states, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
 	total := info.TotalLength()
 	hashesOk := len(info.Pieces) == sha1.Size*info.NumPieces()
 	buf := make([]byte, info.PieceLength)
@@ -46,13 +56,13 @@ func compareOnDisk(ctx context.Context, info *metainfo.Info, dir string) ([]stri
 		start := offset
 		offset += file.Length
 
-		path := filepath.Join(dir, filePathOf(storage.FilePathMakerOpts{Info: info, File: file}))
-		if !isInside(dir, path) {
+		path := filePathOf(storage.FilePathMakerOpts{Info: info, File: file})
+		if !isInside(".", path) {
 			states[i] = diskUnknown
 			continue
 		}
 
-		stat, err := os.Stat(path)
+		stat, err := root.Stat(path)
 		switch {
 		case errors.Is(err, os.ErrNotExist):
 			states[i] = diskMissing
@@ -67,7 +77,7 @@ func compareOnDisk(ctx context.Context, info *metainfo.Info, dir string) ([]stri
 			continue
 		}
 
-		state, err := compareFile(ctx, info, path, start, file.Length, total, buf)
+		state, err := compareFile(ctx, root, info, path, start, file.Length, total, buf)
 		if err != nil {
 			return nil, err
 		}
@@ -77,8 +87,8 @@ func compareOnDisk(ctx context.Context, info *metainfo.Info, dir string) ([]stri
 	return states, nil
 }
 
-func compareFile(ctx context.Context, info *metainfo.Info, path string, start, length, total int64, buf []byte) (string, error) {
-	f, err := os.Open(path)
+func compareFile(ctx context.Context, root *os.Root, info *metainfo.Info, path string, start, length, total int64, buf []byte) (string, error) {
+	f, err := root.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return diskMissing, nil
 	}

@@ -1,3 +1,5 @@
+import type { onRequestAsyncHookHandler } from 'fastify'
+
 export interface RateLimiter {
   /** Засчитывает попытку; `false` — лимит окна исчерпан */
   hit: (key: string, now?: number) => boolean
@@ -78,5 +80,18 @@ export function createRateLimiter(options: {
         windows.delete(key)
       }
     },
+  }
+}
+
+export function ipRateLimit(limit: number): onRequestAsyncHookHandler {
+  const requests = createRateLimiter({ limit, windowMs: 60_000 })
+
+  return async (request, reply) => {
+    if (!requests.hit(request.ip)) {
+      return reply
+        .header('Retry-After', Math.max(1, requests.retryAfter(request.ip)))
+        .code(429)
+        .send({ message: 'Too many API requests' })
+    }
   }
 }

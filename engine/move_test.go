@@ -93,8 +93,8 @@ func TestMoveKeepsDataAndPieces(t *testing.T) {
 }
 
 func TestMoveCopiesAcrossVolumes(t *testing.T) {
-	linkFile = func(string, string) error { return &os.LinkError{Op: "link", Err: syscall.EXDEV} }
-	t.Cleanup(func() { linkFile = os.Link })
+	linkFile = func(*os.Root, string, *os.Root, string) error { return &os.LinkError{Op: "link", Err: syscall.EXDEV} }
+	t.Cleanup(func() { linkFile = linkMoveFile })
 
 	fx := newFixture(t)
 	dataDir := t.TempDir()
@@ -170,7 +170,18 @@ func TestCopySparseKeepsHoles(t *testing.T) {
 
 	var copied int64
 	dst := filepath.Join(dir, "dst")
-	if err := copySparse(src, dst, func(n int64) { copied += n }); err != nil {
+	from, err := os.OpenRoot(filepath.Dir(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer from.Close()
+	to, err := os.OpenRoot(filepath.Dir(dst))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer to.Close()
+
+	if err := copySparse(from, filepath.Base(src), to, filepath.Base(dst), func(n int64) { copied += n }); err != nil {
 		t.Fatal(err)
 	}
 
@@ -184,7 +195,7 @@ func TestCopySparseKeepsHoles(t *testing.T) {
 		t.Fatalf("copied %d bytes: holes were not skipped", copied)
 	}
 
-	if dataSize(dst) >= 64<<20 {
+	if dataSize(to, filepath.Base(dst)) >= 64<<20 {
 		t.Fatal("copy is not sparse")
 	}
 }
@@ -342,11 +353,11 @@ func TestMoveIntoSameDirUnderOtherPathSwitchesPath(t *testing.T) {
 
 func TestParallelMovesStartOnce(t *testing.T) {
 	release := make(chan struct{})
-	linkFile = func(src, dst string) error {
+	linkFile = func(from *os.Root, src string, to *os.Root, dst string) error {
 		<-release
-		return os.Link(src, dst)
+		return linkMoveFile(from, src, to, dst)
 	}
-	t.Cleanup(func() { linkFile = os.Link })
+	t.Cleanup(func() { linkFile = linkMoveFile })
 
 	fx := newFixture(t)
 	dataDir := t.TempDir()

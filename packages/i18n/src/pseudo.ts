@@ -30,25 +30,29 @@ const ACCENTS: Record<string, string> = {
   y: 'ý',
 }
 
-// Подстановки vue-i18n (`{name}`, `{'@'}`) переносятся как есть
-const PLACEHOLDER = /(\{[^}]*\})/
-
 function pseudoForm(form: string) {
   let visible = 0
-  const text = form
-    .split(PLACEHOLDER)
-    .map((part) => {
-      if (PLACEHOLDER.test(part))
-        return part
+  let offset = 0
+  const parts: string[] = []
 
-      visible += part.length
+  function addText(part: string) {
+    visible += part.length
+    parts.push(part.replace(/[a-z]/gi, letter => ACCENTS[letter] ?? letter))
+  }
 
-      return part.replace(/[a-z]/gi, letter => ACCENTS[letter] ?? letter)
-    })
-    .join('')
+  while (offset < form.length) {
+    const start = form.indexOf('{', offset)
+    const end = start < 0 ? -1 : form.indexOf('}', start + 1)
+    if (end < 0)
+      break
+    addText(form.slice(offset, start))
+    parts.push(form.slice(start, end + 1))
+    offset = end + 1
+  }
+  addText(form.slice(offset))
   const pad = PSEUDO_PAD.repeat(Math.max(MIN_PAD, Math.ceil(visible * GROWTH)))
 
-  return `[${text} ${pad}]`
+  return `[${parts.join('')} ${pad}]`
 }
 
 /** Псевдострока; формы множественного числа через ` | ` растягиваются каждая */

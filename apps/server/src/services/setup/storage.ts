@@ -51,7 +51,7 @@ export async function canWrite(dir: string) {
   const probe = join(dir, `.torsher-write-${randomBytes(6).toString('hex')}`)
 
   try {
-    await writeFile(probe, '')
+    await writeFile(probe, '', { flag: 'wx' })
     await unlink(probe)
 
     return true

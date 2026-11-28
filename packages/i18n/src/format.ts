@@ -44,7 +44,9 @@ export function translate(
 
   if (count !== undefined) {
     const forms = message.split(' | ')
-    const rule = pluralRules[language] ?? defaultRule
+    const rule = Object.hasOwn(pluralRules, language)
+      ? (pluralRules[language] ?? defaultRule)
+      : defaultRule
 
     message = forms[rule(count, forms.length)] ?? forms.at(-1)!
   }

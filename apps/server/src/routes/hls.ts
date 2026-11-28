@@ -21,6 +21,7 @@ import {
   TranscodeFailedError,
 } from '../services/media/index.ts'
 import { sessionAccessible } from '../services/profiles/playbackAccess.ts'
+import { ipRateLimit } from '../utils/rateLimit.ts'
 
 const REPEAT_LOG_MS = 60 * 1000
 
@@ -49,6 +50,7 @@ function lastLine(text: string) {
  * файла, адреса несут токен потока — hls.js не обновляет сессию.
  */
 export const hlsRoutes: FastifyPluginAsyncZod = async (app) => {
+  app.addHook('onRequest', ipRateLimit(1200))
   app.addHook('onRequest', requireStream)
 
   app.get(
