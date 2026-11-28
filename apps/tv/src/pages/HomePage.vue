@@ -51,6 +51,7 @@ import { useHome } from '../composables/useHome.ts'
 import { useTitleChanges } from '../composables/useTitleChanges.ts'
 import { useReleaseTexts } from '../composables/useReleaseTexts.ts'
 import { useStackScroll } from '../composables/useStackScroll.ts'
+import { phoneLayout } from '../phoneLayout.ts'
 import { useFocus } from '../focus/index.ts'
 import {
   activationTrigger,
@@ -294,6 +295,12 @@ function alignRows() {
   if (container && !container.isConnected)
     return
 
+  if (phoneLayout.value) {
+    if (container)
+      container.style.paddingBottom = ''
+    return
+  }
+
   if (container) {
     const last = rowElements[rows.value.length - 1]
 
@@ -430,6 +437,15 @@ function resume(item: ContinueItem, event?: MouseEvent) {
 }
 
 const heroResume = computed(() => !!hero.value && 'next' in hero.value.card)
+
+function openHero() {
+  const card = hero.value?.card
+  if (!card)
+    return
+  if ('next' in card)
+    resume(card)
+  else open(card)
+}
 // Hero подсказки раздачи — та же карточка, что в `suggestion`
 const heroRelease = computed(() =>
   rows.value.some(
@@ -632,7 +648,10 @@ onBeforeUnmount(() => {
 
 <template>
   <main ref="screen" class="home" @wheel.passive="onScreenWheel">
-    <BackdropLayer :src="hero?.details?.backdrop" />
+    <BackdropLayer
+      v-if="!phoneLayout || !rows.length || showSkeleton"
+      :src="hero?.details?.backdrop"
+    />
     <span v-if="serverAbout?.devStand" class="home__dev">DEV · {{ serverAbout.devStand.name }}</span>
 
     <p
@@ -647,7 +666,7 @@ onBeforeUnmount(() => {
       <span v-if="addonError">{{ t("addons.partialFailure") }}</span>
     </p>
 
-    <div class="home__hero">
+    <div v-if="!phoneLayout || !rows.length || showSkeleton" class="home__hero">
       <HeroPanel
         v-if="hero"
         :hero="hero"
@@ -674,6 +693,18 @@ onBeforeUnmount(() => {
       :style="{ transform: rowsTransform }"
       @scroll="onRowsScroll"
     >
+      <div v-if="phoneLayout && hero" class="home__hero home__hero--phone">
+        <BackdropLayer :src="hero.details?.backdrop" />
+        <HeroPanel
+          :hero="hero"
+          :resume="heroResume"
+          compact
+          :release="heroRelease"
+        />
+        <button v-if="!heroRelease" class="action action--primary" type="button" @click="openHero">
+          {{ t(heroResume ? 'home.hint.resume' : 'home.hint.details') }}
+        </button>
+      </div>
       <ContentRow
         v-for="(row, index) in rows"
         :key="renderKey(row)"

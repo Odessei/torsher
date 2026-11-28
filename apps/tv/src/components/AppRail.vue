@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useFocus } from '../focus/index.ts'
 import { railAction } from '../lib/navigation.ts'
+import { phoneLayout } from '../phoneLayout.ts'
 import { session } from '../session.ts'
 import AppIcon from './AppIcon.vue'
 import FocusSection from './FocusSection.vue'
@@ -41,6 +42,7 @@ const router = useRouter()
 const focus = useFocus()
 const root = ref<HTMLElement>()
 const open = ref(false)
+const phoneMenu = ref(false)
 
 const main = computed<RailItem[]>(() => [
   { id: 'search', icon: 'search', label: t('nav.search'), path: '/search' },
@@ -68,10 +70,22 @@ const bottom = computed<RailItem[]>(() => [
   { id: 'about', icon: 'about', label: t('common.about'), path: '/about' },
 ])
 
+const phoneTabIds: RailItemId[] = ['home', 'catalog', 'search', 'mine']
+const phoneTabs = computed(() =>
+  main.value
+    .filter(item => phoneTabIds.includes(item.id))
+    .sort((a, b) => phoneTabIds.indexOf(a.id) - phoneTabIds.indexOf(b.id)),
+)
+const phoneExtra = computed(() => [
+  ...main.value.filter(item => !phoneTabIds.includes(item.id)),
+  ...bottom.value,
+])
+
 // Разделы переключаются заменой записи, как вкладки: история не копится, и
 // Back с любого раздела ведёт на главную, а не по кругу через прошлые разделы.
 // «Вперёд» от прежнего раздела к новому не относится
 function select(item: RailItem) {
+  phoneMenu.value = false
   // Подсвечен весь раздел, включая вложенные экраны; пункт ведёт в его корень.
   const action = railAction(
     router.currentRoute.value.path,
@@ -85,6 +99,11 @@ function select(item: RailItem) {
     void router.replace({ path: action.path, state: { forward: null } })
   else if (props.content)
     focus.activate(props.content)
+}
+
+function openProfiles() {
+  phoneMenu.value = false
+  void router.push('/profiles')
 }
 
 // Фокус уже в рейле: шаги внутри него — не вход
@@ -137,8 +156,60 @@ onBeforeUnmount(stopFocus)
 </script>
 
 <template>
+  <nav
+    v-if="phoneLayout"
+    class="phone-nav"
+    :aria-label="t('nav.label')"
+    @keydown.esc="phoneMenu = false"
+  >
+    <button
+      v-if="phoneMenu"
+      class="phone-nav__shade"
+      type="button"
+      :aria-label="t('panel.common.close')"
+      @click="phoneMenu = false"
+    />
+    <div v-if="phoneMenu" class="phone-nav__menu">
+      <button
+        v-if="session.profile"
+        type="button"
+        :aria-label="t('profiles.switch')"
+        @click="openProfiles"
+      >
+        <ProfileAvatar :profile="session.profile" class="phone-nav__avatar" />
+        <span>{{ session.profile.name }}</span>
+      </button>
+      <button
+        v-for="item in phoneExtra"
+        :key="item.id"
+        type="button"
+        :aria-current="item.id === current ? 'page' : undefined"
+        @click="select(item)"
+      >
+        <AppIcon :name="item.icon" />
+        <span>{{ item.label }}</span>
+      </button>
+    </div>
+    <div class="phone-nav__tabs">
+      <button
+        v-for="item in phoneTabs"
+        :key="item.id"
+        type="button"
+        :aria-current="item.id === current ? 'page' : undefined"
+        @click="select(item)"
+      >
+        <AppIcon :name="item.icon" />
+        <span>{{ item.label }}</span>
+      </button>
+      <button type="button" :aria-expanded="phoneMenu" @click="phoneMenu = !phoneMenu">
+        <AppIcon name="more" />
+        <span>{{ t('actions.more') }}</span>
+      </button>
+    </div>
+  </nav>
   <!-- Рейл раскрывается поверх контента: ширина контента не меняется -->
   <nav
+    v-else
     ref="root"
     class="rail"
     :class="{ 'rail--open': open }"

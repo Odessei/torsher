@@ -1,0 +1,501 @@
+html.phone-layout {
+  --u: 0.58px;
+  --safe-x: 16px;
+  --safe-y: 16px;
+  --content-x: var(--safe-x);
+  --poster-width: clamp(110px, 32vw, 152px);
+  --phone-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
+  --focus-scale: 1;
+  --font-size-xl: 29px;
+  --font-size-l: 22px;
+  --font-size-m: 16px;
+  --font-size-s: 13px;
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: dark;
+}
+
+html.phone-layout .action,
+html.phone-layout .chip {
+  min-height: 44px;
+}
+
+html.phone-layout .phone-nav {
+  position: fixed;
+  z-index: 12;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+html.phone-layout .phone-nav__tabs,
+html.phone-layout .phone-nav__menu {
+  position: relative;
+  border-top: 1px solid rgba(242, 244, 248, 0.1);
+  background: var(--color-bg);
+}
+
+html.phone-layout .phone-nav__tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-height: var(--phone-nav-height);
+  padding: 4px 6px env(safe-area-inset-bottom, 0px);
+}
+
+html.phone-layout .phone-nav button {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+html.phone-layout .phone-nav button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+html.phone-layout .phone-nav button:active {
+  background-color: var(--color-glass);
+}
+
+html.phone-layout .phone-nav__tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 52px;
+  padding: 3px 2px;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+html.phone-layout .phone-nav button[aria-current='page'],
+html.phone-layout .phone-nav button[aria-expanded='true'] {
+  color: var(--color-accent);
+}
+
+html.phone-layout .phone-nav__tabs .icon,
+html.phone-layout .phone-nav__menu .icon {
+  font-size: 22px;
+}
+
+html.phone-layout .phone-nav .phone-nav__shade {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+html.phone-layout .phone-nav__menu {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 10px var(--safe-x);
+  border-radius: 18px 18px 0 0;
+}
+
+html.phone-layout .phone-nav__menu button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 0;
+  text-align: left;
+}
+
+html.phone-layout .phone-nav__avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+html.phone-layout .home,
+html.phone-layout .catalog,
+html.phone-layout .search,
+html.phone-layout .mine,
+html.phone-layout .settings,
+html.phone-layout .about {
+  bottom: var(--phone-nav-height);
+}
+
+html.phone-layout .screen {
+  padding-bottom: calc(var(--phone-nav-height) + var(--safe-y));
+}
+
+html.phone-layout .home .backdrop {
+  bottom: auto;
+  height: min(46vh, 360px);
+}
+
+html.phone-layout .home .backdrop__scrim--left,
+html.phone-layout .hero__keys,
+html.phone-layout .home__footer,
+html.phone-layout .title__peek {
+  display: none;
+}
+
+html.phone-layout .home .backdrop__scrim--bottom {
+  background: linear-gradient(0deg, var(--color-bg), rgba(11, 13, 18, 0.74) 20%, rgba(11, 13, 18, 0.05) 75%);
+}
+
+html.phone-layout .home__rows {
+  padding-bottom: var(--safe-y);
+}
+
+html.phone-layout .home__rows--native {
+  top: 0;
+}
+
+html.phone-layout .home__hero {
+  right: var(--safe-x);
+}
+
+html.phone-layout .home__hero--phone {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-height: min(40vh, 318px);
+  margin-bottom: 16px;
+  padding: 20px var(--safe-x) 4px;
+}
+
+html.phone-layout .hero {
+  width: 100%;
+}
+
+html.phone-layout .hero--compact .hero__title {
+  font-size: var(--font-size-xl);
+}
+
+html.phone-layout .row__frame:hover .row__page {
+  display: none;
+}
+
+html.phone-layout .home__hero--phone .action {
+  margin-top: 12px;
+}
+
+html.phone-layout .home__hero--phone .backdrop {
+  bottom: 0;
+  height: 100%;
+}
+
+html.phone-layout .home__hero--phone > .hero,
+html.phone-layout .home__hero--phone > .action {
+  position: relative;
+}
+
+html.phone-layout .home__catalog-note {
+  position: relative;
+  top: auto;
+  right: auto;
+  left: auto;
+  padding: 6px var(--safe-x);
+}
+
+html.phone-layout .home__state {
+  right: var(--safe-x);
+}
+
+html.phone-layout .catalog,
+html.phone-layout .search {
+  --poster-width: calc((100vw - var(--safe-x) * 2 - 12px) / 2);
+}
+
+html.phone-layout .catalog__head {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+html.phone-layout .catalog__title {
+  margin: 0;
+}
+
+html.phone-layout .catalog__chips-view {
+  top: 56px;
+}
+
+html.phone-layout .catalog__area {
+  top: 117px;
+}
+
+html.phone-layout .catalog__row {
+  grid-template-columns: repeat(2, var(--poster-width));
+  column-gap: 12px;
+}
+
+html.phone-layout .search {
+  overflow-y: auto;
+  padding: var(--safe-y) var(--safe-x) 24px;
+}
+
+html.phone-layout .search__left,
+html.phone-layout .search__right {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  padding: 0;
+}
+
+html.phone-layout .search__right--native {
+  margin-top: 18px;
+  overflow: visible;
+}
+
+html.phone-layout .profiles {
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+
+html.phone-layout .profiles__choose {
+  width: 100%;
+  margin-block: auto;
+}
+
+html.phone-layout .profiles__grid {
+  grid-template-columns: repeat(2, minmax(0, 116px));
+  gap: 16px 20px;
+}
+
+html.phone-layout .connect {
+  overflow-y: auto;
+}
+
+html.phone-layout .connect__body {
+  flex: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+  margin-block: 28px;
+  padding: 0;
+}
+
+html.phone-layout .connect__guide,
+html.phone-layout .connect__card {
+  width: 100%;
+}
+
+html.phone-layout .connect__card {
+  height: auto;
+  min-height: 160px;
+  margin-right: 0;
+}
+
+html.phone-layout .connect__address {
+  overflow-wrap: anywhere;
+}
+
+html.phone-layout .connect__code {
+  font-size: clamp(36px, 12vw, 62px);
+}
+
+html.phone-layout .search .grid {
+  grid-template-columns: repeat(2, var(--poster-width));
+  gap: 14px 12px;
+}
+
+html.phone-layout .search .field {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+html.phone-layout .mine__left {
+  right: 0;
+  bottom: auto;
+  width: auto;
+}
+
+html.phone-layout .mine__heading {
+  margin-bottom: 8px;
+}
+
+html.phone-layout .mine__sections {
+  display: flex;
+  gap: 6px;
+  height: auto;
+  padding-bottom: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+html.phone-layout .mine__label--preview,
+html.phone-layout .mine__section-spacer {
+  display: none;
+}
+
+html.phone-layout .mine__section {
+  flex: none;
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  background-color: var(--color-glass);
+}
+
+html.phone-layout .mine__right,
+html.phone-layout .mine > .schedule,
+html.phone-layout .mine > .mine-personal {
+  top: 124px;
+  right: var(--safe-x);
+  left: var(--safe-x);
+}
+
+html.phone-layout .mine__grid {
+  --poster-width: calc((100vw - var(--safe-x) * 2 - 12px) / 2);
+
+  grid-template-columns: repeat(2, var(--poster-width));
+  gap: 14px 12px;
+}
+
+html.phone-layout .title__head {
+  display: flow-root;
+  height: auto;
+  min-height: 310px;
+  padding: clamp(88px, 29vw, 170px) var(--safe-x) 26px;
+}
+
+html.phone-layout .title__info,
+html.phone-layout .title__actions {
+  position: relative;
+  inset: auto;
+  width: 100%;
+}
+
+html.phone-layout .title__actions {
+  margin-top: 16px;
+}
+
+html.phone-layout .title__actions .button-row__fit {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+html.phone-layout .title__actions .action {
+  min-height: 48px;
+  margin: 0;
+}
+
+html.phone-layout .title__actions .title__primary {
+  flex: 0 0 100%;
+  justify-content: center;
+  max-width: none;
+}
+
+html.phone-layout .title__actions .title__icon {
+  min-width: 48px;
+}
+
+html.phone-layout .title__logo {
+  max-width: 100%;
+}
+
+html.phone-layout .title__meta-row {
+  max-width: 100%;
+}
+
+html.phone-layout .title__overview {
+  max-width: 100%;
+}
+
+html.phone-layout .title__shade {
+  background: linear-gradient(0deg, var(--color-bg) 21%, rgba(11, 13, 18, 0.92) 66%, rgba(11, 13, 18, 0.26));
+}
+
+html.phone-layout .title .facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html.phone-layout .screen-back {
+  width: 44px;
+  height: 44px;
+}
+
+html.phone-layout .sources {
+  overflow-y: auto;
+  padding: 62px var(--safe-x) 22px;
+}
+
+html.phone-layout .sources__card {
+  display: none;
+}
+
+html.phone-layout .sources__shade {
+  background: linear-gradient(0deg, var(--color-bg) 20%, rgba(11, 13, 18, 0.84));
+}
+
+html.phone-layout .sources__main {
+  position: relative;
+  inset: auto;
+}
+
+html.phone-layout .sources__list {
+  overflow: visible;
+  padding-bottom: 18px;
+}
+
+html.phone-layout .sources__controls {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+html.phone-layout .sources__controls .chip {
+  max-width: 100%;
+  margin-right: 0;
+}
+
+html.phone-layout .library-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+}
+
+html.phone-layout .library-row__lead {
+  grid-column: 1 / -1;
+}
+
+html.phone-layout .options__panel,
+html.phone-layout .side-panel__panel,
+html.phone-layout .panel__body {
+  width: min(calc(100% - 48px), 440px);
+}
+
+html.phone-layout .osd__top {
+  left: 64px;
+  right: var(--safe-x);
+}
+
+html.phone-layout .osd__heading {
+  padding-left: 0;
+}
+
+html.phone-layout .osd__title {
+  font-size: var(--font-size-l);
+}
+
+html.phone-layout .osd__clock {
+  display: none;
+}
+
+html.phone-layout .osd__pill {
+  min-height: 30px;
+}
+
+html.phone-layout .osd__bottom {
+  left: var(--safe-x);
+  right: var(--safe-x);
+}
+
+html.phone-layout .osd__button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+html.phone-layout .player__back {
+  min-width: 44px;
+  min-height: 44px;
+}

@@ -2,6 +2,7 @@ import { trackScreen } from '@torsher/demo/analytics'
 import { handle, UNAVAILABLE } from '@torsher/demo/router'
 import { createApp } from 'vue'
 import { i18n } from '../i18n.ts'
+import { phoneLayout } from '../phoneLayout.ts'
 import { router } from '../router.ts'
 import DemoBar from './DemoBar.vue'
 import NarrowGate from './NarrowGate.vue'
@@ -43,7 +44,7 @@ function patchFetch() {
 }
 
 function isNarrowFirstVisit() {
-  if (window.innerWidth >= NARROW_WIDTH)
+  if (phoneLayout.value || window.innerWidth >= NARROW_WIDTH)
     return false
 
   try {

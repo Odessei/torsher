@@ -59,10 +59,11 @@ import {
   windowOf,
 } from '../lib/gridWindow.ts'
 import { stackOffset } from '../lib/rowStack.ts'
+import { phoneLayout } from '../phoneLayout.ts'
 
 defineOptions({ name: 'CatalogPage' })
 
-const COLUMNS = 6
+const columns = computed(() => phoneLayout.value ? 2 : 6)
 // Две строки скелетонов: столько сетки видно до первого ответа
 const SKELETON_ROWS = 2
 // Оценка TMDB — бренд, не переводится
@@ -524,7 +525,8 @@ const cells = computed<Cell[]>(() => {
   const pending = hasMore.value || shownCount.value < items.value.length
 
   if (pending && !moreFailed.value) {
-    const fill = ((COLUMNS - (list.length % COLUMNS)) % COLUMNS) + COLUMNS
+    const width = columns.value
+    const fill = ((width - (list.length % width)) % width) + width
 
     for (let index = 0; index < fill; index += 1)
       list.push({ key: `skeleton-${index}` })
@@ -533,8 +535,8 @@ const cells = computed<Cell[]>(() => {
   return list
 })
 
-const rows = computed(() => rowsOf(cells.value, COLUMNS))
-const loadedRows = computed(() => Math.ceil(items.value.length / COLUMNS))
+const rows = computed(() => rowsOf(cells.value, columns.value))
+const loadedRows = computed(() => Math.ceil(items.value.length / columns.value))
 
 const screen = ref<HTMLElement>()
 const area = ref<HTMLElement>()
@@ -864,7 +866,7 @@ onBeforeUnmount(() => {
     <div v-else class="catalog__area" aria-hidden="true">
       <div class="catalog__grid">
         <div v-for="row in SKELETON_ROWS" :key="row" class="catalog__row">
-          <PosterSkeleton v-for="cell in COLUMNS" :key="cell" />
+          <PosterSkeleton v-for="cell in columns" :key="cell" />
         </div>
       </div>
     </div>

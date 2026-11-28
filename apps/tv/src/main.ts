@@ -1,6 +1,7 @@
 import '@torsher/tokens/tokens.css'
 import './styles/fonts.css'
 import './styles/app.css'
+import './styles/phone.css'
 import { createApp, watch } from 'vue'
 import { onProfileRequired, onSessionExpired } from './api.ts'
 import {
@@ -17,10 +18,12 @@ import { exitApp } from './platform/shell.ts'
 import { goBack } from './lib/navigation.ts'
 import { gateTarget } from './lib/session.ts'
 import { misaligned, railAxisOffsets } from './lib/railAxis.ts'
+import { initPhoneLayout } from './phoneLayout.ts'
 import { router } from './router.ts'
 import { expireSession, requireProfile, session } from './session.ts'
 
 document.documentElement.setAttribute('data-platform', platform)
+initPhoneLayout(platform === 'web')
 
 // Back на первом экране: на ТВ — выход из приложения (подтверждение
 // показывает система), в браузере — ничего, router.back() увёл бы со страницы
