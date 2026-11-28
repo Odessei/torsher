@@ -32,6 +32,16 @@ class ServerAddressTest {
     }
 
     @Test
+    fun usesAnHttpsPresetOnlyWithoutASavedAddress() {
+        val preset = "https://watch.example.test/"
+        val saved = "http://192.0.2.10:8080"
+        assertEquals("https://watch.example.test", initialServerAddress(null, preset))
+        assertEquals(saved, initialServerAddress(saved, preset))
+        assertNull(initialServerAddress(null, ""))
+        assertNull(initialServerAddress(null, "http://watch.example.test"))
+    }
+
+    @Test
     fun buildsServerUrls() {
         assertEquals("http://192.168.1.10:8080/api/health", healthUrl("http://192.168.1.10:8080"))
         assertEquals("https://media.example/torsher/?platform=tv", showcaseUrl("https://media.example/torsher"))

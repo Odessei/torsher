@@ -36,6 +36,9 @@ fun normalizeAddress(input: String): String? {
 /** `http://` в подписи лишний, `https://` оставляем: он о чём-то говорит */
 fun displayAddress(base: String) = base.removePrefix("http://")
 
+fun initialServerAddress(saved: String?, preset: String): String? =
+    saved ?: normalizeAddress(preset)?.takeIf { it.startsWith("https://") }
+
 fun healthUrl(base: String) = "$base/api/health"
 
 /** Витрина отдаётся с корня сервера; `platform=tv` включает режим ТВ */

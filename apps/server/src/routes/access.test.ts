@@ -28,6 +28,8 @@ const PUBLIC = new Set([
   'GET /api/devices/pairing/:secret',
 ])
 
+const GUEST_ONLY = new Set(['POST /api/guest/claim'])
+
 const VIEWER = new Set([
   'POST /api/speedtest/internet',
   'GET /api/speedtest/internet/:id',
@@ -223,7 +225,7 @@ describe('доступ к маршрутам API', () => {
   it('списки ссылаются только на существующие маршруты', () => {
     const known = new Set(routes.map(keyOf))
 
-    for (const key of [...PUBLIC, ...VIEWER])
+    for (const key of [...PUBLIC, ...VIEWER, ...GUEST_ONLY])
       expect(known.has(key), key).toBe(true)
   })
 
@@ -232,7 +234,8 @@ describe('доступ к маршрутам API', () => {
       if (PUBLIC.has(keyOf(route)))
         continue
 
-      expect((await inject(route, {})).statusCode, keyOf(route)).toBe(401)
+      const key = keyOf(route)
+      expect((await inject(route, {})).statusCode, key).toBe(GUEST_ONLY.has(key) ? 404 : 401)
     }
   })
 
@@ -245,7 +248,9 @@ describe('доступ к маршрутам API', () => {
 
       const status = (await inject(route, device)).statusCode
 
-      if (VIEWER.has(key))
+      if (GUEST_ONLY.has(key))
+        expect(status, key).toBe(404)
+      else if (VIEWER.has(key))
         expect(status, key).not.toBe(401)
       else expect(status, key).toBe(401)
     }
@@ -256,9 +261,12 @@ describe('доступ к маршрутам API', () => {
       if (PUBLIC.has(keyOf(route)))
         continue
 
-      expect((await inject(route, owner)).statusCode, keyOf(route)).not.toBe(
-        401,
-      )
+      const key = keyOf(route)
+      const status = (await inject(route, owner)).statusCode
+      if (GUEST_ONLY.has(key))
+        expect(status, key).toBe(404)
+      else
+        expect(status, key).not.toBe(401)
     }
   })
 })

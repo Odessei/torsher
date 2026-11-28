@@ -82,7 +82,9 @@ export const profileRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async request => ({
-      items: listProfiles().map(toProfileResponse),
+      items: listProfiles()
+        .filter(item => !request.guestProfileId || item.id === request.guestProfileId)
+        .map(toProfileResponse),
       currentId: request.profileId,
       selected: request.profileSelected,
     }),
@@ -306,6 +308,9 @@ export const profileRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
+      if (request.guestProfileId && request.params.id !== request.guestProfileId)
+        return reply.code(404).send(notFound)
+
       const found = getProfile(request.params.id)
 
       if (!found)

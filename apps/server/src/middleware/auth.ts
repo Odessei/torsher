@@ -21,6 +21,7 @@ import {
 import { defaultProfile, getProfile } from '../services/profiles/index.ts'
 import { needsSetup } from '../services/users/index.ts'
 import { verifySession } from '../services/users/session.ts'
+import { isGuestRequest } from './guest.ts'
 import { verifyTokenFor } from '../utils/token.ts'
 
 declare module 'fastify' {
@@ -29,6 +30,7 @@ declare module 'fastify' {
     userId: string
     /** Устройство, подключённое по коду; у сессии владельца — null */
     deviceId: string | null
+    guestProfileId: string | null
     /** Профиль зрителя: его позиции, прогресс и язык */
     profileId: string
     /**
@@ -101,6 +103,9 @@ function unauthorized(reply: FastifyReply) {
 
 /** Владелец по access-cookie; токен отозванной сессии (сменился пароль или имя пользователя) не проходит */
 function ownerIdOf(request: FastifyRequest) {
+  if (isGuestRequest(request))
+    return undefined
+
   const token = request.cookies[ACCESS_TOKEN_COOKIE] ?? ''
 
   try {
@@ -139,6 +144,12 @@ function setProfile(
 
 function asDevice(request: FastifyRequest, device: Device) {
   request.deviceId = device.id
+  request.guestProfileId = device.guestProfileId
+  if (device.guestProfileId) {
+    request.profileId = getProfile(device.guestProfileId)?.id ?? ''
+    request.profileSelected = !!request.profileId
+    return
+  }
   setProfile(request, device.profileId, true)
 }
 
@@ -158,6 +169,8 @@ export function viewerStillOnProfile(
     const device = getDevice(request.deviceId)
     if (device?.purpose !== 'viewer')
       return false
+    if (device.guestProfileId)
+      return device.guestProfileId === expectedProfileId
     const selected = device.profileId && getProfile(device.profileId)
     if (selected)
       return selected.id === expectedProfileId
@@ -243,7 +256,7 @@ export async function requireViewer(
       return unauthorized(reply)
     }
 
-    if (device) {
+    if (device && !!device.guestProfileId === isGuestRequest(request)) {
       const stale
         = !device.lastSeenAt
           || Date.now() - device.lastSeenAt.getTime() > DEVICE_COOKIE_RENEW_MS
@@ -255,7 +268,10 @@ export async function requireViewer(
         })
         && stale
       ) {
-        reply.setCookie(DEVICE_TOKEN_COOKIE, token, deviceCookieOptions)
+        reply.setCookie(DEVICE_TOKEN_COOKIE, token, {
+          ...deviceCookieOptions,
+          secure: isGuestRequest(request) ? true : deviceCookieOptions.secure,
+        })
       }
 
       asDevice(request, device)
@@ -294,6 +310,8 @@ export function requireByRoute(request: FastifyRequest, reply: FastifyReply) {
  * владельца — всегда, устройство — только с профилем без возрастного порога.
  */
 export function canManageLibrary(request: FastifyRequest) {
+  if (request.guestProfileId)
+    return false
   if (request.userId)
     return true
 
@@ -338,7 +356,7 @@ export async function requireStream(
     if (subject.startsWith(DEVICE_SUBJECT_PREFIX)) {
       const device = getDevice(subject.slice(DEVICE_SUBJECT_PREFIX.length))
 
-      if (!device || device.purpose !== 'viewer') {
+      if (!device || device.purpose !== 'viewer' || !!device.guestProfileId !== isGuestRequest(request)) {
         logDeviceTokenRejected(
           request,
           'device_stream',
@@ -355,6 +373,8 @@ export async function requireStream(
         return profileRequired(reply)
     }
     else {
+      if (isGuestRequest(request))
+        return unauthorized(reply)
       // Поток владельца несёт версию сессий: после смены пароля он закрывается
       try {
         const verified = verifySession(token, 'stream')

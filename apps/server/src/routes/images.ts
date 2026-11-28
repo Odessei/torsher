@@ -1,6 +1,8 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { Readable } from 'node:stream'
 import { z } from 'zod'
+import { requireViewer } from '../middleware/auth.ts'
+import { isGuestRequest } from '../middleware/guest.ts'
 import { TMDB_MAX_CACHE_AGE_MS } from '../services/tmdb/cache.ts'
 import { fetchTmdbImage, TmdbError } from '../services/tmdb/index.ts'
 
@@ -40,6 +42,10 @@ export const imageRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/:size/:file',
     {
+      onRequest: async (request, reply) => {
+        if (isGuestRequest(request))
+          await requireViewer(request, reply)
+      },
       schema: {
         // Бинарный ответ: в OpenAPI и generated-клиенте роут не нужен
         hide: true,

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+import { renderSVG } from 'uqr'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import ActionButton from '../components/ActionButton.vue'
@@ -24,6 +26,14 @@ const router = useRouter()
 
 const isTv = platform === 'tv'
 const address = panelAddress(window.location)
+const guest = ref(false)
+const guestBrowser = computed(() => guest.value && !isTv)
+const shouldPair = fetch('/activate', { method: 'HEAD', cache: 'no-store' })
+  .then(response => response.ok, () => false)
+  .then((enabled) => {
+    guest.value = enabled
+    return !guestBrowser.value
+  })
 
 const { phase, code, retry, restart } = usePairing(async () => {
   await resolveSession()
@@ -36,9 +46,14 @@ const { phase, code, retry, restart } = usePairing(async () => {
 
   // Дальше решает гейт: выбор профиля или сразу туда, куда шли
   void router.replace(safeNext(route.query.next) ?? '/')
-})
+}, shouldPair)
 
 const loading = useHeldLoading(() => phase.value === 'loading')
+const qr = computed(() => {
+  if (!guest.value || !isTv || !code.value)
+    return undefined
+  return `data:image/svg+xml,${encodeURIComponent(renderSVG(`torsher:tv:${code.value}`, { border: 4, ecc: 'M' }))}`
+})
 </script>
 
 <template>
@@ -53,7 +68,13 @@ const loading = useHeldLoading(() => phase.value === 'loading')
         <h1 class="connect__title">
           {{ isTv ? t("connect.titleTv") : t("connect.titleWeb") }}
         </h1>
-        <ol class="connect__steps">
+        <p v-if="guestBrowser">
+          Открой ссылку из приглашения в этом браузере. Если её нет, попроси владельца прислать новую.
+        </p>
+        <p v-else-if="guest">
+          Открой приглашение на телефоне и отсканируй QR-код с экрана.
+        </p>
+        <ol v-else class="connect__steps">
           <li class="connect__step">
             <span class="connect__number">1</span>
             <span>
@@ -81,6 +102,7 @@ const loading = useHeldLoading(() => phase.value === 'loading')
               @click="retry"
             />
             <ActionButton
+              v-if="!guest"
               v-focusable
               :label="t('connect.owner')"
               @click="signInAsOwner"
@@ -96,7 +118,7 @@ const loading = useHeldLoading(() => phase.value === 'loading')
       </div>
 
       <!-- Карточка кода держит размер во всех состояниях: экран не прыгает -->
-      <div class="connect__card" aria-live="polite">
+      <div v-if="!guestBrowser" class="connect__card" aria-live="polite">
         <template v-if="phase === 'error' && !loading">
           <p class="connect__error">
             {{ t("connect.error") }}
@@ -107,7 +129,8 @@ const loading = useHeldLoading(() => phase.value === 'loading')
         </template>
         <AppLoader v-else-if="loading || !code" />
         <template v-else>
-          <p class="connect__code">
+          <img v-if="qr" :src="qr" class="connect__qr" alt="QR-код для подключения телевизора">
+          <p class="connect__code" :class="{ 'connect__code--compact': qr }">
             {{ formatCode(code) }}
           </p>
           <p class="connect__note">
@@ -221,6 +244,18 @@ const loading = useHeldLoading(() => phase.value === 'loading')
   line-height: 1;
   letter-spacing: 0.08em;
   white-space: nowrap;
+}
+
+.connect__qr {
+  display: block;
+  width: calc(var(--u) * 226);
+  height: auto;
+  margin-bottom: var(--space-4);
+  background: #fff;
+}
+
+.connect__code--compact {
+  font-size: calc(var(--u) * 50);
 }
 
 .connect__note {

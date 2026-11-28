@@ -12,7 +12,7 @@ export type PairingPhase = 'loading' | 'code' | 'error'
  * по секрету, пока владелец не введёт код в панели. После подтверждения
  * ответ опроса ставит cookie устройства. Истёкший код меняется сам.
  */
-export function usePairing(onApproved: () => void) {
+export function usePairing(onApproved: () => void, shouldPair: Promise<boolean>) {
   const phase = ref<PairingPhase>('loading')
   const code = ref<string>()
 
@@ -26,6 +26,9 @@ export function usePairing(onApproved: () => void) {
   }
 
   async function start() {
+    if (stopped)
+      return
+
     clearTimeout(timer)
     secret = undefined
 
@@ -81,7 +84,10 @@ export function usePairing(onApproved: () => void) {
     void start()
   }
 
-  void start()
+  void shouldPair.then((allowed) => {
+    if (allowed)
+      return start()
+  })
 
   onBeforeUnmount(() => {
     stopped = true

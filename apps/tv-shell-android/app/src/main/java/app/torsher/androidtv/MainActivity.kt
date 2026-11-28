@@ -94,8 +94,8 @@ class MainActivity : ComponentActivity() {
 
     /** Сохранённый адрес проверяем и открываем сразу */
     private fun start() {
-        val saved = store.load()
-        if (saved != null) connect(saved) else showAddress()
+        val base = initialServerAddress(store.load(), BuildConfig.DEFAULT_SERVER_ADDRESS)
+        if (base != null) connect(base) else showAddress()
     }
 
     private fun submit(input: String) {
@@ -110,7 +110,8 @@ class MainActivity : ComponentActivity() {
     private fun showAddress(input: String? = null, error: String? = null) {
         attempt++
         closeShowcase()
-        screen.value = ShellScreen.Address(input ?: store.load()?.let(::displayAddress).orEmpty(), error)
+        val base = initialServerAddress(store.load(), BuildConfig.DEFAULT_SERVER_ADDRESS)
+        screen.value = ShellScreen.Address(input ?: base?.let(::displayAddress).orEmpty(), error)
     }
 
     private fun connect(base: String) {

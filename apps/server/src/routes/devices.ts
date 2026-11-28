@@ -20,6 +20,7 @@ import {
   startPairing as startPairingBody,
   updateDevice,
 } from '../dto/devices.ts'
+import { isGuestRequest } from '../middleware/guest.ts'
 import { requireOwner } from '../middleware/auth.ts'
 import {
   confirmPairing,
@@ -87,23 +88,28 @@ export const deviceRoutes: FastifyPluginAsyncZod = async (app) => {
         operationId: 'postDevicePairing',
         tags: ['Devices'],
         body: startPairingBody,
-        response: { 201: pairing, 429: messageResponse },
+        response: { 201: pairing, 404: messageResponse, 429: messageResponse },
       },
     },
     async (request, reply) => {
-      if (!pairingStartLimiter.hit(request.ip)) {
+      const guest = isGuestRequest(request)
+      if (!pairingStartLimiter.hit(`${guest}:${request.ip}`)) {
         logAuthRateLimited(request.ip, 'start')
         return reply.code(429).send(tooMany)
       }
-      if (countActivePairings() >= MAX_ACTIVE_PAIRINGS) {
+      if (countActivePairings(new Date(), guest) >= MAX_ACTIVE_PAIRINGS) {
         logAuthRateLimited(request.ip, 'active')
         return reply.code(429).send(tooMany)
       }
 
       const userAgent = request.headers['user-agent']
       const type = request.body.type ?? deviceTypeOf(userAgent)
+      if (guest && type !== 'tv')
+        return reply.code(404).send({ message: 'TV required' })
+
       const started = startPairing({
         type,
+        guest,
         ip: request.ip,
         userAgent,
       })
@@ -143,12 +149,14 @@ export const deviceRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      if (!pairingPollLimiter.hit(request.ip)) {
+      const guest = isGuestRequest(request)
+      if (!pairingPollLimiter.hit(`${guest}:${request.ip}`)) {
         logAuthRateLimited(request.ip, 'poll')
         return reply.code(429).send(tooMany)
       }
 
-      const result = pollPairing(request.params.secret)
+      reply.header('Cache-Control', 'no-store')
+      const result = pollPairing(request.params.secret, guest)
 
       if (!result) {
         logPairingRejected(request.ip, 'invalid', 'poll')
@@ -174,7 +182,10 @@ export const deviceRoutes: FastifyPluginAsyncZod = async (app) => {
         },
         'Device paired',
       )
-      reply.setCookie(DEVICE_TOKEN_COOKIE, result.token, deviceCookieOptions)
+      reply.setCookie(DEVICE_TOKEN_COOKIE, result.token, {
+        ...deviceCookieOptions,
+        secure: isGuestRequest(request) ? true : deviceCookieOptions.secure,
+      })
 
       return {
         status: result.status,
