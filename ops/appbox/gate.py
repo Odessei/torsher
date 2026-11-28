@@ -10,24 +10,52 @@ import stat
 import subprocess
 import sys
 
-from security import DIGEST, Journal
-
 RECENT_WINDOW = "180s"
 READ_ACTIVITY = """
-const fs = require('node:fs');
-const cookie = fs.readFileSync(0, 'utf8').trim();
-if (!cookie || /[\\r\\n]/.test(cookie)) process.exit(2);
-const read = async (path) => {
+import { readFileSync } from 'node:fs';
+import { dirname, isAbsolute, join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+
+async function localOwnerCookie() {
+  const database = process.env.DATABASE_PATH;
+  if (!database || !isAbsolute(database)) throw Error('owner database unavailable');
+  if (!process.env.SECRET_KEY) {
+    process.env.SECRET_KEY = readFileSync(join(dirname(database), 'session.key'), 'utf8').trim();
+  }
+
+  const db = new DatabaseSync(database, {readOnly:true});
+  let owners;
+  try {
+    owners = db.prepare('SELECT id, session_version FROM users LIMIT 2').all();
+  } finally {
+    db.close();
+  }
+  if (owners.length !== 1 || typeof owners[0].id !== 'string'
+      || !Number.isInteger(owners[0].session_version)) throw Error('owner unavailable');
+  const {ACCESS_TOKEN_COOKIE} = await import('./server/src/config.ts');
+  const {signToken} = await import('./server/src/utils/token.ts');
+  return ACCESS_TOKEN_COOKIE+'='+signToken(owners[0].id, 'user_access', owners[0].session_version);
+}
+
+async function read(path, cookie) {
   const response = await fetch('http://127.0.0.1:8080'+path, {
-    headers: {cookie}, signal: AbortSignal.timeout(5000),
+    headers: {cookie}, redirect: 'error', signal: AbortSignal.timeout(5000),
   });
   if (!response.ok) throw Error('activity check unavailable');
   return response.json();
-};
-Promise.all([read('/api/settings/torrent'), read('/api/devices')]).then(([torrent, devices]) => {
+}
+
+async function main() {
+  const supplied = readFileSync(0, 'utf8').trim();
+  if (/[\\r\\n]/.test(supplied)) throw Error('invalid session header');
+  const cookie = supplied || await localOwnerCookie();
+  const [torrent, devices] = await Promise.all([
+    read('/api/settings/torrent', cookie), read('/api/devices', cookie),
+  ]);
   if (!Number.isInteger(torrent.activeStreams) || torrent.activeStreams < 0 || !Array.isArray(devices.items)) process.exit(2);
   console.log(JSON.stringify({openStreams:torrent.activeStreams, recentDevices:devices.items.filter(i=>i.watching===true).length}));
-}).catch(()=>process.exit(2));
+}
+main().catch(()=>process.exit(2));
 """
 
 
@@ -63,9 +91,10 @@ def read_cookie(path):
         return stream.read(8193)
 
 
-def activity(cookie, target="torsher-torsher-1"):
+def activity(cookie=b"", target="torsher-torsher-1"):
     response = subprocess.run(
-        ("docker", "exec", "-i", target, "node", "-e", READ_ACTIVITY),
+        ("docker", "exec", "-i", "--workdir", "/app", target,
+         "node", "--input-type=module", "-e", READ_ACTIVITY),
         input=cookie, capture_output=True, timeout=12, check=True,
     )
     values = json.loads(response.stdout)
@@ -78,6 +107,8 @@ def activity(cookie, target="torsher-torsher-1"):
 
 
 def main():
+    from security import DIGEST, Journal
+
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", type=Path, required=True)
@@ -107,7 +138,7 @@ def main():
             cookie = sys.stdin.buffer.read(8193)
         elif args.cookie_file:
             cookie = read_cookie(args.cookie_file)
-        if not cookie or len(cookie) > 8192:
+        if len(cookie) > 8192 or ((args.stdin or args.cookie_file) and not cookie.strip()):
             raise ValueError("activity credentials unavailable")
         values = activity(cookie, args.torsher_container)
         decision = ("deferred_active_viewing"
