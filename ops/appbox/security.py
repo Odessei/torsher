@@ -118,10 +118,15 @@ def database_timestamp(cache, now=None):
     now = now or datetime.datetime.now(datetime.timezone.utc)
     try:
         metadata = json.loads((cache / "db" / "metadata.json").read_text(encoding="utf-8"))
-        updated = datetime.datetime.fromisoformat(metadata["UpdatedAt"])
+        timestamp = metadata["UpdatedAt"]
+        if timestamp.endswith("Z"):
+            timestamp = timestamp[:-1] + "+00:00"
+        timestamp = re.sub(r"\.(\d+)(?=[+-]\d{2}:\d{2}$)",
+                           lambda match: "." + match[1][:6].ljust(6, "0"), timestamp)
+        updated = datetime.datetime.fromisoformat(timestamp)
         if not updated.tzinfo or not -datetime.timedelta(minutes=5) <= now - updated <= MAX_DB_AGE:
             raise ValueError("Vulnerability database timestamp is stale or invalid")
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise VulnerabilityDatabaseError("Missing, invalid or stale Trivy vulnerability database") from error
     return updated.isoformat()
 
