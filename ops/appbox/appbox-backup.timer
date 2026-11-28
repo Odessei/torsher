@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily encrypted Torsher offsite backup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=30min
+Unit=appbox-backup.service
+
+[Install]
+WantedBy=timers.target

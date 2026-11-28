@@ -79,6 +79,20 @@ recreation. Before setting CPU, memory or PID limits, verify the runtime cgroup
 driver and controllers. Compose configuration alone does not prove that a
 limit is enforced.
 
+## Encrypted offsite backups
+
+The optional `appbox-backup.timer` runs the backup service daily. Configure
+`backup.json` and the referenced rclone config as private files. Use an age
+recipients file with only the public recipient. Keep the identity outside
+Appbox. The private settings are `recipients_file`, `rclone_config`,
+`rclone_destination` and an optional `container` override.
+
+The isolated backup process reads a consistent SQLite snapshot and both
+keys from a read-only mount, checks the database, then encrypts the archive.
+It retains 14 local archives and uses rclone copy, with a downloaded content
+check on the new copy. Download and decrypt a real offsite archive with the
+owner's identity in a private workspace before calling the backup verified.
+
 `pilot.py` checks the pinned Traefik candidate in an isolated network
 namespace. On Appbox it starts the previous local digest against the same
 fixture to check rollback. The fixture covers trusted access, outside denial

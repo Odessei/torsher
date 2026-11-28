@@ -1,0 +1,11 @@
+[Unit]
+Description=Encrypted Torsher offsite backup
+
+[Service]
+Type=oneshot
+UMask=0077
+Nice=15
+Environment=DOCKER_HOST=unix://%h/.docker/run/docker.sock
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 %h/.local/lib/appbox-security/runner/offsite_backup.py --config %h/.config/appbox-security/backup.json --state %h/.local/state/appbox-backup
+TimeoutStartSec=35min
