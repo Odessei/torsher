@@ -10,6 +10,21 @@
  * ---------------------------------------------------------------
  */
 
+export enum ExternalListsErrorCode {
+  KeyRequired = "keyRequired",
+  KeyRejected = "keyRejected",
+  SourceUnavailable = "sourceUnavailable",
+  SourceAmbiguous = "sourceAmbiguous",
+  SourceTooLarge = "sourceTooLarge",
+  ListLimit = "listLimit",
+  Duplicate = "duplicate",
+  RetryLater = "retryLater",
+  PreviewExpired = "previewExpired",
+  InvalidSource = "invalidSource",
+  ProviderError = "providerError",
+  NotFound = "notFound",
+}
+
 export enum MaintenanceReason {
   Disabled = "disabled",
   Legacy = "legacy",
@@ -34,6 +49,21 @@ export enum MaintenanceReason {
   ClockInvalid = "clock_invalid",
   GracePeriod = "grace_period",
   ActivePlayback = "active_playback",
+}
+
+export enum ExternalListsErrorCodeInput {
+  KeyRequired = "keyRequired",
+  KeyRejected = "keyRejected",
+  SourceUnavailable = "sourceUnavailable",
+  SourceAmbiguous = "sourceAmbiguous",
+  SourceTooLarge = "sourceTooLarge",
+  ListLimit = "listLimit",
+  Duplicate = "duplicate",
+  RetryLater = "retryLater",
+  PreviewExpired = "previewExpired",
+  InvalidSource = "invalidSource",
+  ProviderError = "providerError",
+  NotFound = "notFound",
 }
 
 export enum MaintenanceReasonInput {
@@ -5092,6 +5122,209 @@ export interface UpdateDeviceInput {
   name: string;
 }
 
+export interface ExternalListsErrorResponseInput {
+  message: ExternalListsErrorCodeInput;
+}
+
+export interface ExternalListCountsInput {
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  found: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  added: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  existing: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  handled: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  excluded: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  restricted: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  watched: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  unmatched: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  pending: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  deferred: number;
+}
+
+export interface ExternalListLastResultInput {
+  status: "complete" | "partial" | "error";
+  counts: ExternalListCountsInput | null;
+  error: ExternalListsErrorCodeInput | null;
+}
+
+export interface ExternalListInput {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  id: string;
+  /**
+   * @min 0
+   * @exclusiveMin true
+   * @max 9007199254740991
+   */
+  sourceId: number;
+  name: string;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  profileId: string;
+  media: "all" | "movie" | "tv";
+  intervalHours: 12 | 24 | 48;
+  paused: boolean;
+  running: boolean;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  lastAttemptAt: number | null;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  lastReadAt: number | null;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  nextRunAt: number | null;
+  lastResult: ExternalListLastResultInput | null;
+}
+
+export interface ExternalListSettingsInput {
+  hasKey: boolean;
+  keyRejected: boolean;
+  lists: ExternalListInput[];
+}
+
+export interface UpdateExternalListKeyInput {
+  /**
+   * @minLength 1
+   * @maxLength 256
+   * @pattern ^[\x21-\x7E]+$
+   */
+  apiKey: string | null;
+}
+
+export interface ExternalListPreviewInputInput {
+  /**
+   * @minLength 1
+   * @maxLength 512
+   */
+  source: string;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  profileId: string;
+  media: "all" | "movie" | "tv";
+  intervalHours: 12 | 24 | 48;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  listId?: string;
+}
+
+export interface ExternalListPreviewTokenInput {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  token: string;
+}
+
+export interface ExternalListPreviewJobInput {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  token: string;
+  status: "pending" | "ready" | "error";
+  preview?: {
+    name: string;
+    /**
+     * @min 0
+     * @exclusiveMin true
+     * @max 9007199254740991
+     */
+    sourceId: number;
+    /**
+     * @minLength 1
+     * @maxLength 128
+     */
+    profileId: string;
+    counts: ExternalListCountsInput;
+    items: {
+      /** @pattern ^tmdb:(?:movie|tv):[1-9]\d*$ */
+      titleId: string;
+      title: string;
+    }[];
+  };
+  error?: ExternalListsErrorCodeInput;
+}
+
+export interface UpdateExternalListInput {
+  paused: boolean;
+}
+
+export interface ExternalListExclusionInput {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  profileId: string;
+  /** @pattern ^tmdb:(?:movie|tv):[1-9]\d*$ */
+  titleId: string;
+}
+
+export interface ExternalListExclusionsInput {
+  items: {
+    /** @pattern ^tmdb:(?:movie|tv):[1-9]\d*$ */
+    titleId: string;
+    title: string | null;
+  }[];
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  nextOffset: number | null;
+}
+
 export type FollowVoicePolicyInput =
   | {
       mode: "auto";
@@ -7096,7 +7329,9 @@ export interface MineDiaryEntryInput {
    * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
    */
   calendarDay: string | null;
-  origin: "playback" | "manual" | "letterboxd" | "trakt";
+  origin: "playback" | "manual" | "letterboxd" | "trakt" | "simkl";
+  /** @pattern ^https:\/\/simkl\.com\/(?:movies|tv)\/[1-9]\d*$ */
+  sourceUrl?: string;
   rewatch: boolean;
   /** @maxLength 10000 */
   note: string | null;
@@ -9052,6 +9287,154 @@ export interface PinErrorResponseInput {
   retryAfter: number | null;
 }
 
+export interface JellyfinImportErrorInput {
+  kind:
+    | "address"
+    | "addressChanged"
+    | "httpsRequired"
+    | "auth"
+    | "unsupported"
+    | "response"
+    | "limit"
+    | "busy"
+    | "expired"
+    | "catalog"
+    | "profileChanged";
+}
+
+export interface JellyfinConnectionBodyInput {
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  url: string;
+}
+
+export interface JellyfinConnectionInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  address: string;
+  addresses: string[];
+  /**
+   * @format date-time
+   * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+   */
+  expiresAt: string;
+}
+
+export interface JellyfinPreviewBodyInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  connectionId: string;
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  username: string;
+  /** @maxLength 1024 */
+  password: string;
+}
+
+export interface JellyfinPreviewStartedInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+}
+
+export interface JellyfinPreviewInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  state: "reading" | "ready" | "failed";
+  source?: {
+    server: string;
+    user: string;
+  };
+  movies?: {
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    added: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    existing: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    skipped: number;
+  };
+  episodes?: {
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    added: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    existing: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    skipped: number;
+  };
+  skipped?: {
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    invalid: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    unmatched: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    restricted: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    duplicate: number;
+  };
+  /**
+   * @format date-time
+   * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+   */
+  lastActivityAt?: string;
+  logoutWarning?: boolean;
+  error?:
+    | "address"
+    | "addressChanged"
+    | "httpsRequired"
+    | "auth"
+    | "unsupported"
+    | "response"
+    | "limit"
+    | "busy"
+    | "expired"
+    | "catalog"
+    | "profileChanged";
+}
+
 export interface SourcePresetInput {
   id: string;
   /**
@@ -9159,6 +9542,90 @@ export interface ThumbnailSettingsInput {
 
 export interface UpdateThumbnailSettingsInput {
   automatic: boolean;
+}
+
+export interface SimklDeviceInputInput {
+  scope: "read" | "write";
+}
+
+export interface SimklDirectionsInputInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  expectedGeneration: string;
+  pull: boolean;
+  push: boolean;
+}
+
+export interface SimklSyncInputInput {
+  mode: "auto" | "manual" | "full";
+}
+
+export interface SimklStatusInput {
+  available: boolean;
+  connection: {
+    /**
+     * @format uuid
+     * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+     */
+    generation: string;
+    account: string;
+    scope: "read" | "write";
+    pull: boolean;
+    push: boolean;
+    reauthorize: boolean;
+  } | null;
+  challenge: {
+    scope: "read" | "write";
+    userCode: string;
+    verificationUri: string;
+    /**
+     * @format date-time
+     * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+     */
+    expiresAt: string;
+    /**
+     * @format date-time
+     * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+     */
+    nextPollAt: string;
+  } | null;
+  syncing: boolean;
+  syncError: boolean;
+  /**
+   * @format date-time
+   * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+   */
+  lastSyncAt: string | null;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  pending: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  issues: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  skipped: number;
+  revokeWarning: boolean;
+}
+
+export interface SimklErrorInput {
+  kind:
+    | "unavailable"
+    | "profile"
+    | "busy"
+    | "identity"
+    | "scope"
+    | "expired"
+    | "denied"
+    | "provider";
 }
 
 export interface WizardStateInput {
@@ -9420,7 +9887,7 @@ export interface CreateExportInput {
 
 export interface ExportFileInput {
   format: "torsher-export";
-  version: 2;
+  version: 2 | 3;
   /**
    * @format date-time
    * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
@@ -9871,7 +10338,7 @@ export interface ExportFileInput {
        * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
        */
       day: string | null;
-      origin: "playback" | "manual" | "letterboxd" | "trakt";
+      origin: "playback" | "manual" | "letterboxd" | "trakt" | "simkl";
       /**
        * @minLength 1
        * @maxLength 500
@@ -10447,6 +10914,158 @@ export interface ServerImportResultInput {
    * @max 9007199254740991
    */
   skipped: number;
+}
+
+export interface ArrConnectionInput {
+  kind: "sonarr" | "radarr";
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  url: string;
+}
+
+export interface ArrConnectionResultInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  origin: string;
+  addresses: string[];
+}
+
+export interface ArrPreviewInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  connectionId: string;
+  approveLan: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 512
+   * @pattern ^[\x21-\x7E]+$
+   */
+  apiKey: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  profileId: string;
+  language: "ru-RU" | "en-US";
+}
+
+export interface ArrPreviewStartedInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+}
+
+export interface ArrPreviewRowInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  sourceTitle?: string;
+  sourceStatus?: "upcoming" | "continuing" | "ended" | "deleted";
+  /**
+   * @min -9007199254740991
+   * @max 9007199254740991
+   */
+  year?: number;
+  title?: string;
+  selectable: boolean;
+  selected: boolean;
+  reasons: (
+    | "existing"
+    | "duplicate"
+    | "unmonitored"
+    | "no_monitored_seasons"
+    | "deleted"
+    | "partial_monitoring"
+    | "ended"
+    | "has_file"
+    | "unknown_file"
+    | "invalid"
+    | "unmatched"
+    | "conflict"
+    | "tmdb_unavailable"
+    | "unknown_cursor"
+  )[];
+}
+
+export interface ArrPreviewStatusInput {
+  state: "preparing" | "ready";
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  checked: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  total: number;
+  rows: ArrPreviewRowInput[];
+}
+
+export interface ArrApplyInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  previewId: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  rowIds: string[];
+}
+
+export interface ArrApplyResultInput {
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  created: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  skipped: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  failed: number;
+  rows: {
+    /**
+     * @format uuid
+     * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+     */
+    id: string;
+    outcome: "created" | "skipped" | "failed";
+    reason: "created" | "existing" | "failed";
+  }[];
+}
+
+export interface ArrErrorResponseInput {
+  message: string;
+  kind:
+    | "address"
+    | "address_changed"
+    | "auth"
+    | "unsupported"
+    | "bad_response"
+    | "limit"
+    | "expired"
+    | "profile"
+    | "busy"
+    | "request";
 }
 
 export interface MeResponseInput {
@@ -15503,6 +16122,209 @@ export interface UpdateDevice {
   name: string;
 }
 
+export interface ExternalListsErrorResponse {
+  message: ExternalListsErrorCode;
+}
+
+export interface ExternalListCounts {
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  found: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  added: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  existing: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  handled: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  excluded: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  restricted: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  watched: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  unmatched: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  pending: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  deferred: number;
+}
+
+export interface ExternalListLastResult {
+  status: "complete" | "partial" | "error";
+  counts: ExternalListCounts | null;
+  error: ExternalListsErrorCode | null;
+}
+
+export interface ExternalList {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  id: string;
+  /**
+   * @min 0
+   * @exclusiveMin true
+   * @max 9007199254740991
+   */
+  sourceId: number;
+  name: string;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  profileId: string;
+  media: "all" | "movie" | "tv";
+  intervalHours: 12 | 24 | 48;
+  paused: boolean;
+  running: boolean;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  lastAttemptAt: number | null;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  lastReadAt: number | null;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  nextRunAt: number | null;
+  lastResult: ExternalListLastResult | null;
+}
+
+export interface ExternalListSettings {
+  hasKey: boolean;
+  keyRejected: boolean;
+  lists: ExternalList[];
+}
+
+export interface UpdateExternalListKey {
+  /**
+   * @minLength 1
+   * @maxLength 256
+   * @pattern ^[\x21-\x7E]+$
+   */
+  apiKey: string | null;
+}
+
+export interface ExternalListPreviewInput {
+  /**
+   * @minLength 1
+   * @maxLength 512
+   */
+  source: string;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  profileId: string;
+  media: "all" | "movie" | "tv";
+  intervalHours: 12 | 24 | 48;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  listId?: string;
+}
+
+export interface ExternalListPreviewToken {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  token: string;
+}
+
+export interface ExternalListPreviewJob {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  token: string;
+  status: "pending" | "ready" | "error";
+  preview?: {
+    name: string;
+    /**
+     * @min 0
+     * @exclusiveMin true
+     * @max 9007199254740991
+     */
+    sourceId: number;
+    /**
+     * @minLength 1
+     * @maxLength 128
+     */
+    profileId: string;
+    counts: ExternalListCounts;
+    items: {
+      /** @pattern ^tmdb:(?:movie|tv):[1-9]\d*$ */
+      titleId: string;
+      title: string;
+    }[];
+  };
+  error?: ExternalListsErrorCode;
+}
+
+export interface UpdateExternalList {
+  paused: boolean;
+}
+
+export interface ExternalListExclusion {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  profileId: string;
+  /** @pattern ^tmdb:(?:movie|tv):[1-9]\d*$ */
+  titleId: string;
+}
+
+export interface ExternalListExclusions {
+  items: {
+    /** @pattern ^tmdb:(?:movie|tv):[1-9]\d*$ */
+    titleId: string;
+    title: string | null;
+  }[];
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  nextOffset: number | null;
+}
+
 export type FollowVoicePolicy =
   | {
       mode: "auto";
@@ -17507,7 +18329,9 @@ export interface MineDiaryEntry {
    * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
    */
   calendarDay: string | null;
-  origin: "playback" | "manual" | "letterboxd" | "trakt";
+  origin: "playback" | "manual" | "letterboxd" | "trakt" | "simkl";
+  /** @pattern ^https:\/\/simkl\.com\/(?:movies|tv)\/[1-9]\d*$ */
+  sourceUrl?: string;
   rewatch: boolean;
   /** @maxLength 10000 */
   note: string | null;
@@ -19463,6 +20287,154 @@ export interface PinErrorResponse {
   retryAfter: number | null;
 }
 
+export interface JellyfinImportError {
+  kind:
+    | "address"
+    | "addressChanged"
+    | "httpsRequired"
+    | "auth"
+    | "unsupported"
+    | "response"
+    | "limit"
+    | "busy"
+    | "expired"
+    | "catalog"
+    | "profileChanged";
+}
+
+export interface JellyfinConnectionBody {
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  url: string;
+}
+
+export interface JellyfinConnection {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  address: string;
+  addresses: string[];
+  /**
+   * @format date-time
+   * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+   */
+  expiresAt: string;
+}
+
+export interface JellyfinPreviewBody {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  connectionId: string;
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  username: string;
+  /** @maxLength 1024 */
+  password: string;
+}
+
+export interface JellyfinPreviewStarted {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+}
+
+export interface JellyfinPreview {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  state: "reading" | "ready" | "failed";
+  source?: {
+    server: string;
+    user: string;
+  };
+  movies?: {
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    added: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    existing: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    skipped: number;
+  };
+  episodes?: {
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    added: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    existing: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    skipped: number;
+  };
+  skipped?: {
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    invalid: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    unmatched: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    restricted: number;
+    /**
+     * @min 0
+     * @max 9007199254740991
+     */
+    duplicate: number;
+  };
+  /**
+   * @format date-time
+   * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+   */
+  lastActivityAt?: string;
+  logoutWarning?: boolean;
+  error?:
+    | "address"
+    | "addressChanged"
+    | "httpsRequired"
+    | "auth"
+    | "unsupported"
+    | "response"
+    | "limit"
+    | "busy"
+    | "expired"
+    | "catalog"
+    | "profileChanged";
+}
+
 export interface SourcePreset {
   id: string;
   /**
@@ -19570,6 +20542,90 @@ export interface ThumbnailSettings {
 
 export interface UpdateThumbnailSettings {
   automatic: boolean;
+}
+
+export interface SimklDeviceInput {
+  scope: "read" | "write";
+}
+
+export interface SimklDirectionsInput {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  expectedGeneration: string;
+  pull: boolean;
+  push: boolean;
+}
+
+export interface SimklSyncInput {
+  mode: "auto" | "manual" | "full";
+}
+
+export interface SimklStatus {
+  available: boolean;
+  connection: {
+    /**
+     * @format uuid
+     * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+     */
+    generation: string;
+    account: string;
+    scope: "read" | "write";
+    pull: boolean;
+    push: boolean;
+    reauthorize: boolean;
+  } | null;
+  challenge: {
+    scope: "read" | "write";
+    userCode: string;
+    verificationUri: string;
+    /**
+     * @format date-time
+     * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+     */
+    expiresAt: string;
+    /**
+     * @format date-time
+     * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+     */
+    nextPollAt: string;
+  } | null;
+  syncing: boolean;
+  syncError: boolean;
+  /**
+   * @format date-time
+   * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+   */
+  lastSyncAt: string | null;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  pending: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  issues: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  skipped: number;
+  revokeWarning: boolean;
+}
+
+export interface SimklError {
+  kind:
+    | "unavailable"
+    | "profile"
+    | "busy"
+    | "identity"
+    | "scope"
+    | "expired"
+    | "denied"
+    | "provider";
 }
 
 export interface WizardState {
@@ -19831,7 +20887,7 @@ export interface CreateExport {
 
 export interface ExportFile {
   format: "torsher-export";
-  version: 2;
+  version: 2 | 3;
   /**
    * @format date-time
    * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
@@ -20282,7 +21338,7 @@ export interface ExportFile {
        * @pattern ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
        */
       day: string | null;
-      origin: "playback" | "manual" | "letterboxd" | "trakt";
+      origin: "playback" | "manual" | "letterboxd" | "trakt" | "simkl";
       /**
        * @minLength 1
        * @maxLength 500
@@ -20860,6 +21916,158 @@ export interface ServerImportResult {
   skipped: number;
 }
 
+export interface ArrConnection {
+  kind: "sonarr" | "radarr";
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  url: string;
+}
+
+export interface ArrConnectionResult {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  origin: string;
+  addresses: string[];
+}
+
+export interface ArrPreview {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  connectionId: string;
+  approveLan: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 512
+   * @pattern ^[\x21-\x7E]+$
+   */
+  apiKey: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  profileId: string;
+  language: "ru-RU" | "en-US";
+}
+
+export interface ArrPreviewStarted {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+}
+
+export interface ArrPreviewRow {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  id: string;
+  sourceTitle?: string;
+  sourceStatus?: "upcoming" | "continuing" | "ended" | "deleted";
+  /**
+   * @min -9007199254740991
+   * @max 9007199254740991
+   */
+  year?: number;
+  title?: string;
+  selectable: boolean;
+  selected: boolean;
+  reasons: (
+    | "existing"
+    | "duplicate"
+    | "unmonitored"
+    | "no_monitored_seasons"
+    | "deleted"
+    | "partial_monitoring"
+    | "ended"
+    | "has_file"
+    | "unknown_file"
+    | "invalid"
+    | "unmatched"
+    | "conflict"
+    | "tmdb_unavailable"
+    | "unknown_cursor"
+  )[];
+}
+
+export interface ArrPreviewStatus {
+  state: "preparing" | "ready";
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  checked: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  total: number;
+  rows: ArrPreviewRow[];
+}
+
+export interface ArrApply {
+  /**
+   * @format uuid
+   * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+   */
+  previewId: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  rowIds: string[];
+}
+
+export interface ArrApplyResult {
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  created: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  skipped: number;
+  /**
+   * @min 0
+   * @max 9007199254740991
+   */
+  failed: number;
+  rows: {
+    /**
+     * @format uuid
+     * @pattern ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+     */
+    id: string;
+    outcome: "created" | "skipped" | "failed";
+    reason: "created" | "existing" | "failed";
+  }[];
+}
+
+export interface ArrErrorResponse {
+  message: string;
+  kind:
+    | "address"
+    | "address_changed"
+    | "auth"
+    | "unsupported"
+    | "bad_response"
+    | "limit"
+    | "expired"
+    | "profile"
+    | "busy"
+    | "request";
+}
+
 export interface MeResponse {
   id: string;
   username: string;
@@ -21411,6 +22619,16 @@ export type PostTransferImportPreviewError =
 export type PostTransferImportApplyError =
   MessageResponse | BackupErrorResponse;
 
+export type PostArrConnectionError = MessageResponse | ArrErrorResponse;
+
+export type PostArrPreviewError = MessageResponse | ArrErrorResponse;
+
+export type GetArrPreviewError = MessageResponse | ArrErrorResponse;
+
+export type DeleteArrPreviewError = MessageResponse | ArrErrorResponse;
+
+export type PostArrApplyError = MessageResponse | ArrErrorResponse;
+
 export type GetNetRoutesError = MessageResponse;
 
 export type PostNetRouteError = MessageResponse | NetRouteErrorResponse;
@@ -21484,6 +22702,34 @@ export type PostPlaybackCheckError = MessageResponse;
 export type GetFollowSettingsError = MessageResponse;
 
 export type PutFollowSettingsError = MessageResponse;
+
+export type GetExternalListsError = MessageResponse;
+
+export type PutExternalListKeyError =
+  MessageResponse | ExternalListsErrorResponse;
+
+export type StartExternalListPreviewError =
+  MessageResponse | ExternalListsErrorResponse;
+
+export type GetExternalListPreviewError =
+  MessageResponse | ExternalListsErrorResponse;
+
+export type ConfirmExternalListError =
+  MessageResponse | ExternalListsErrorResponse;
+
+export type PatchExternalListError =
+  MessageResponse | ExternalListsErrorResponse;
+
+export type DeleteExternalListError =
+  MessageResponse | ExternalListsErrorResponse;
+
+export type RunExternalListError = MessageResponse | ExternalListsErrorResponse;
+
+export type GetExternalListExclusionsError =
+  MessageResponse | ExternalListsErrorResponse;
+
+export type DeleteExternalListExclusionError =
+  MessageResponse | ExternalListsErrorResponse;
 
 export type GetSubtitleSettingsError = MessageResponse;
 
@@ -21612,6 +22858,37 @@ export type DeleteProfileImportError = MessageResponse;
 export type PostProfileImportApplyError = MessageResponse;
 
 export type PostProfileImportUndoError = MessageResponse;
+
+export type PostProfileJellyfinConnectionError =
+  MessageResponse | JellyfinImportError;
+
+export type PostProfileJellyfinPreviewError =
+  MessageResponse | JellyfinImportError;
+
+export type GetProfileJellyfinPreviewError =
+  MessageResponse | JellyfinImportError;
+
+export type DeleteProfileJellyfinPreviewError =
+  MessageResponse | JellyfinImportError;
+
+export type PostProfileJellyfinApplyError =
+  MessageResponse | JellyfinImportError;
+
+export type GetProfileSimklError = MessageResponse | SimklError;
+
+export type PatchProfileSimklError = MessageResponse | SimklError;
+
+export type DeleteProfileSimklError = MessageResponse | SimklError;
+
+export type PostProfileSimklDeviceError = MessageResponse | SimklError;
+
+export type DeleteProfileSimklDeviceError = MessageResponse | SimklError;
+
+export type PostProfileSimklDevicePollError = MessageResponse | SimklError;
+
+export type PostProfileSimklSyncError = MessageResponse | SimklError;
+
+export type PostProfileSimklRetryError = MessageResponse | SimklError;
 
 export type PostDevicePairingError = MessageResponse;
 
@@ -26197,6 +27474,86 @@ export class Api<
         format: "json",
         ...params,
       }),
+
+    /**
+     * No description
+     *
+     * @tags Transfer
+     * @name PostArrConnection
+     * @request POST:/api/transfer/arr/connection
+     */
+    postArrConnection: (data: ArrConnectionInput, params: RequestParams = {}) =>
+      this.request<ArrConnectionResult, PostArrConnectionError>({
+        path: `/api/transfer/arr/connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Transfer
+     * @name PostArrPreview
+     * @request POST:/api/transfer/arr/preview
+     */
+    postArrPreview: (data: ArrPreviewInput, params: RequestParams = {}) =>
+      this.request<ArrPreviewStarted, PostArrPreviewError>({
+        path: `/api/transfer/arr/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Transfer
+     * @name GetArrPreview
+     * @request GET:/api/transfer/arr/preview/{id}
+     */
+    getArrPreview: (id: string, params: RequestParams = {}) =>
+      this.request<ArrPreviewStatus, GetArrPreviewError>({
+        path: `/api/transfer/arr/preview/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Transfer
+     * @name DeleteArrPreview
+     * @request DELETE:/api/transfer/arr/preview/{id}
+     */
+    deleteArrPreview: (id: string, params: RequestParams = {}) =>
+      this.request<void, DeleteArrPreviewError>({
+        path: `/api/transfer/arr/preview/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Transfer
+     * @name PostArrApply
+     * @request POST:/api/transfer/arr/apply
+     */
+    postArrApply: (data: ArrApplyInput, params: RequestParams = {}) =>
+      this.request<ArrApplyResult, PostArrApplyError>({
+        path: `/api/transfer/arr/apply`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
   };
   net = {
     /**
@@ -26847,6 +28204,192 @@ export class Api<
         body: data,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name GetExternalLists
+     * @request GET:/api/settings/external-lists/
+     */
+    getExternalLists: (params: RequestParams = {}) =>
+      this.request<ExternalListSettings, GetExternalListsError>({
+        path: `/api/settings/external-lists/`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name PutExternalListKey
+     * @request PUT:/api/settings/external-lists/key
+     */
+    putExternalListKey: (
+      data: UpdateExternalListKeyInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<ExternalListSettings, PutExternalListKeyError>({
+        path: `/api/settings/external-lists/key`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name StartExternalListPreview
+     * @request POST:/api/settings/external-lists/preview
+     */
+    startExternalListPreview: (
+      data: ExternalListPreviewInputInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<ExternalListPreviewJob, StartExternalListPreviewError>({
+        path: `/api/settings/external-lists/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name GetExternalListPreview
+     * @request GET:/api/settings/external-lists/preview/{token}
+     */
+    getExternalListPreview: (token: string, params: RequestParams = {}) =>
+      this.request<ExternalListPreviewJob, GetExternalListPreviewError>({
+        path: `/api/settings/external-lists/preview/${token}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name ConfirmExternalList
+     * @request POST:/api/settings/external-lists/confirm
+     */
+    confirmExternalList: (
+      data: ExternalListPreviewTokenInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<ExternalList, ConfirmExternalListError>({
+        path: `/api/settings/external-lists/confirm`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name PatchExternalList
+     * @request PATCH:/api/settings/external-lists/{listId}
+     */
+    patchExternalList: (
+      listId: string,
+      data: UpdateExternalListInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<ExternalList, PatchExternalListError>({
+        path: `/api/settings/external-lists/${listId}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name DeleteExternalList
+     * @request DELETE:/api/settings/external-lists/{listId}
+     */
+    deleteExternalList: (listId: string, params: RequestParams = {}) =>
+      this.request<void, DeleteExternalListError>({
+        path: `/api/settings/external-lists/${listId}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name RunExternalList
+     * @request POST:/api/settings/external-lists/{listId}/run
+     */
+    runExternalList: (listId: string, params: RequestParams = {}) =>
+      this.request<ExternalList, RunExternalListError>({
+        path: `/api/settings/external-lists/${listId}/run`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name GetExternalListExclusions
+     * @request GET:/api/settings/external-lists/exclusions
+     */
+    getExternalListExclusions: (
+      query: {
+        /**
+         * @minLength 1
+         * @maxLength 128
+         */
+        profileId: string;
+        /** @pattern ^\d{1,8}$ */
+        offset?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ExternalListExclusions, GetExternalListExclusionsError>({
+        path: `/api/settings/external-lists/exclusions`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ExternalLists
+     * @name DeleteExternalListExclusion
+     * @request DELETE:/api/settings/external-lists/exclusions
+     */
+    deleteExternalListExclusion: (
+      data: ExternalListExclusionInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, DeleteExternalListExclusionError>({
+        path: `/api/settings/external-lists/exclusions`,
+        method: "DELETE",
+        body: data,
+        type: ContentType.Json,
         ...params,
       }),
 
@@ -27951,6 +29494,242 @@ export class Api<
     ) =>
       this.request<UndoneImport, PostProfileImportUndoError>({
         path: `/api/profiles/${id}/imports/${importId}/undo`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PostProfileJellyfinConnection
+     * @request POST:/api/profiles/{id}/imports/jellyfin/connection
+     */
+    postProfileJellyfinConnection: (
+      id: string,
+      data: JellyfinConnectionBodyInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<JellyfinConnection, PostProfileJellyfinConnectionError>({
+        path: `/api/profiles/${id}/imports/jellyfin/connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PostProfileJellyfinPreview
+     * @request POST:/api/profiles/{id}/imports/jellyfin/preview
+     */
+    postProfileJellyfinPreview: (
+      id: string,
+      data: JellyfinPreviewBodyInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<JellyfinPreviewStarted, PostProfileJellyfinPreviewError>({
+        path: `/api/profiles/${id}/imports/jellyfin/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name GetProfileJellyfinPreview
+     * @request GET:/api/profiles/{id}/imports/jellyfin/preview/{importId}
+     */
+    getProfileJellyfinPreview: (
+      id: string,
+      importId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<JellyfinPreview, GetProfileJellyfinPreviewError>({
+        path: `/api/profiles/${id}/imports/jellyfin/preview/${importId}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name DeleteProfileJellyfinPreview
+     * @request DELETE:/api/profiles/{id}/imports/jellyfin/preview/{importId}
+     */
+    deleteProfileJellyfinPreview: (
+      id: string,
+      importId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, DeleteProfileJellyfinPreviewError>({
+        path: `/api/profiles/${id}/imports/jellyfin/preview/${importId}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PostProfileJellyfinApply
+     * @request POST:/api/profiles/{id}/imports/jellyfin/preview/{importId}/apply
+     */
+    postProfileJellyfinApply: (
+      id: string,
+      importId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<AppliedImport, PostProfileJellyfinApplyError>({
+        path: `/api/profiles/${id}/imports/jellyfin/preview/${importId}/apply`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name GetProfileSimkl
+     * @request GET:/api/profiles/{id}/simkl
+     */
+    getProfileSimkl: (id: string, params: RequestParams = {}) =>
+      this.request<SimklStatus, GetProfileSimklError>({
+        path: `/api/profiles/${id}/simkl`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PatchProfileSimkl
+     * @request PATCH:/api/profiles/{id}/simkl
+     */
+    patchProfileSimkl: (
+      id: string,
+      data: SimklDirectionsInputInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<SimklStatus, PatchProfileSimklError>({
+        path: `/api/profiles/${id}/simkl`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name DeleteProfileSimkl
+     * @request DELETE:/api/profiles/{id}/simkl
+     */
+    deleteProfileSimkl: (id: string, params: RequestParams = {}) =>
+      this.request<SimklStatus, DeleteProfileSimklError>({
+        path: `/api/profiles/${id}/simkl`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PostProfileSimklDevice
+     * @request POST:/api/profiles/{id}/simkl/device
+     */
+    postProfileSimklDevice: (
+      id: string,
+      data: SimklDeviceInputInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<SimklStatus, PostProfileSimklDeviceError>({
+        path: `/api/profiles/${id}/simkl/device`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name DeleteProfileSimklDevice
+     * @request DELETE:/api/profiles/{id}/simkl/device
+     */
+    deleteProfileSimklDevice: (id: string, params: RequestParams = {}) =>
+      this.request<SimklStatus, DeleteProfileSimklDeviceError>({
+        path: `/api/profiles/${id}/simkl/device`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PostProfileSimklDevicePoll
+     * @request POST:/api/profiles/{id}/simkl/device/poll
+     */
+    postProfileSimklDevicePoll: (id: string, params: RequestParams = {}) =>
+      this.request<SimklStatus, PostProfileSimklDevicePollError>({
+        path: `/api/profiles/${id}/simkl/device/poll`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PostProfileSimklSync
+     * @request POST:/api/profiles/{id}/simkl/sync
+     */
+    postProfileSimklSync: (
+      id: string,
+      data: SimklSyncInputInput,
+      params: RequestParams = {},
+    ) =>
+      this.request<SimklStatus, PostProfileSimklSyncError>({
+        path: `/api/profiles/${id}/simkl/sync`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Profiles
+     * @name PostProfileSimklRetry
+     * @request POST:/api/profiles/{id}/simkl/retry
+     */
+    postProfileSimklRetry: (id: string, params: RequestParams = {}) =>
+      this.request<SimklStatus, PostProfileSimklRetryError>({
+        path: `/api/profiles/${id}/simkl/retry`,
         method: "POST",
         format: "json",
         ...params,

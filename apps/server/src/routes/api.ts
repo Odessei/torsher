@@ -11,6 +11,7 @@ import { catalogRoutes } from './catalog.ts'
 import { collectionRoutes } from './collections.ts'
 import { deviceRoutes } from './devices.ts'
 import { engineRoutes } from './engine.ts'
+import { externalListRoutes } from './externalLists.ts'
 import { followRoutes } from './follow.ts'
 import { hlsRoutes } from './hls.ts'
 import { homeRoutes } from './home.ts'
@@ -30,6 +31,7 @@ import { profileImportRoutes } from './profileImports.ts'
 import { profileRoutes } from './profiles.ts'
 import { settingsRoutes } from './settings.ts'
 import { subtitleSettingsRoutes } from './subtitleSettings.ts'
+import { simklRoutes } from './simkl.ts'
 import { setupRoutes } from './setup.ts'
 import { storageRoutes } from './storage.ts'
 import { streamRoutes } from './stream.ts'
@@ -112,12 +114,14 @@ export const apiRoutes: FastifyPluginAsyncZod = async (app) => {
   app.register(netRoutes, { prefix: '/net' })
   app.register(speedtestRoutes, { prefix: '/speedtest' })
   app.register(settingsRoutes, { prefix: '/settings' })
+  app.register(externalListRoutes, { prefix: '/settings/external-lists' })
   app.register(subtitleSettingsRoutes, { prefix: '/settings' })
   app.register(setupRoutes, { prefix: '/setup' })
   app.register(playbackRoutes)
   app.register(followRoutes)
   app.register(profileRoutes, { prefix: '/profiles' })
   app.register(profileImportRoutes, { prefix: '/profiles' })
+  app.register(simklRoutes, { prefix: '/profiles/:id/simkl' })
   app.register(deviceRoutes, { prefix: '/devices' })
   app.register(engineRoutes, { prefix: '/engine' })
   app.register(logRoutes, { prefix: '/logs' })

@@ -1,3 +1,8 @@
+import {
+  startExternalListScheduler,
+  stopExternalListScheduler,
+} from './services/externalLists/index.ts'
+import { startSimklWorker, stopSimklWorker } from './services/simkl/index.ts'
 import { startUsenetScheduler } from './services/usenet/index.ts'
 import { runSubtitleJobs } from './services/subtitles/automation.ts'
 import {
@@ -292,6 +297,7 @@ async function startLibraryProducers() {
       logFor('catalog').warn({ err }, 'Pending library recognition failed'),
     )
   stopUsenetScheduler = startUsenetScheduler()
+  startExternalListScheduler()
   startFollowScheduler()
 }
 
@@ -432,6 +438,8 @@ const shutdown = createShutdown({
     async () => stopBackupScheduler(),
     async () => stopFollowScheduler(),
     async () => stopUsenetScheduler?.(),
+    stopSimklWorker,
+    async () => stopExternalListScheduler(),
     async () => stopMaintenanceScheduler(),
     // ffmpeg перепаковки тоже дочерний: его сегменты после выхода не нужны
     stopResourceMonitor,
@@ -475,6 +483,7 @@ if (restoreResult.applied)
   finalizeRestoreNow()
 
 startBackupScheduler()
+startSimklWorker()
 void engine.start()
 startNotificationMonitor()
 checkHosts()
