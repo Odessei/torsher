@@ -38,6 +38,7 @@ export function useDownloadStatus() {
       view.status === 'failed'
       || view.status === 'pausedStorage'
       || view.status === 'stalled'
+      || view.status === 'trackerError'
     ) {
       return t(`panel.torrents.problems.${view.status}`)
     }
