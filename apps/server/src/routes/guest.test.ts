@@ -58,6 +58,14 @@ describe('guest invitations', () => {
     expect((await app.inject({ url: '/guest-invites' })).statusCode).toBe(401)
   })
 
+  it('limits requests for the QR decoder without blocking a separate client', async () => {
+    const qr = { url: '/activate-qr.js', headers: guestHeaders }
+    const requests = await Promise.all(Array.from({ length: 31 }, () => app.inject({ ...qr, remoteAddress: '198.51.100.50' })))
+    expect(requests.filter(response => response.statusCode === 200)).toHaveLength(30)
+    expect(requests.filter(response => response.statusCode === 429)).toHaveLength(1)
+    expect((await app.inject({ ...qr, remoteAddress: '198.51.100.51' })).statusCode).toBe(200)
+  })
+
   it('claims exactly one TV for exactly one profile and supports owner revocation', async () => {
     const pending = await app.inject({
       method: 'POST',
