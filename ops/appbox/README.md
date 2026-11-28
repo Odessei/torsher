@@ -101,9 +101,13 @@ not use production labels, tracker accounts or private hostnames.
 
 `gate.py` is report-only. It reads the Torsher open-stream counter, connected
 device activity and recent playback events. A live Range request counts even
-when the viewer made no recent API request. Use `--stdin` for a short-lived
-owner session passed securely or `--cookie-file` with a private file outside
-the repository. Unknown activity and active viewing both defer the plan.
+when the viewer made no recent API request. By default the probe runs inside
+the container through the host's existing Docker access. It reads the owner
+record without writing to the database, authenticates the two loopback reads
+with the application's signer, and returns only activity counts. The probe
+uses the token only for those loopback reads and never prints or stores it.
+`--stdin` and `--cookie-file` can still provide an explicit owner session.
+Unknown activity and active viewing both defer the plan.
 
 Before enabling release automation, approve the exact update policy and match
 the reviewed commit, tested registry digest and intended dependencies in the
