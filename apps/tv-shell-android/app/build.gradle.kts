@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+import java.net.URI
 
 plugins {
     alias(libs.plugins.android.application)
@@ -17,6 +18,19 @@ fun versionCodeOf(version: String): Int {
 // Подпись релиза — из окружения CI; без него релиз собирается неподписанным
 val releaseKeystore = System.getenv("ANDROID_KEYSTORE_PATH")
 
+val defaultServer = providers.gradleProperty("torsherAndroidTvServer")
+    .orElse(providers.environmentVariable("TORSHER_ANDROID_TV_DEFAULT_SERVER"))
+    .orElse("")
+    .get()
+    .trim()
+if (defaultServer.isNotEmpty()) {
+    val uri = runCatching { URI(defaultServer) }.getOrNull()
+    require(uri != null && uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrEmpty() &&
+        (uri.port == -1 || uri.port in 1..65_535) && uri.rawPath in listOf("", "/") &&
+        uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null
+    ) { "The preconfigured TV server must be an HTTPS origin." }
+}
+
 android {
     namespace = "app.torsher.androidtv"
     compileSdk {
@@ -31,6 +45,7 @@ android {
         targetSdk = 36
         versionName = productVersion
         versionCode = versionCodeOf(productVersion)
+        buildConfigField("String", "DEFAULT_SERVER_ADDRESS", "\"$defaultServer\"")
     }
 
     signingConfigs {

@@ -67,6 +67,8 @@ pnpm --filter @torsher/tv-shell-android build:apk
 pnpm --filter @torsher/tv-shell-android install:tv
 ```
 
+For a private APK with a preconfigured server, set `TORSHER_ANDROID_TV_DEFAULT_SERVER` to its HTTPS origin during the build. On first launch the app checks that address automatically. An address saved by the viewer takes precedence. Distribute that APK privately if its server address is private.
+
 A debug build is signed with a different key, so it doesn't install over the release app: remove one before installing the other.
 :::
 
@@ -82,6 +84,8 @@ The app remembers the address and opens the showcase. To change it later, use <U
 ## 5. Connect with a code
 
 The showcase shows a six-character code. Enter it in the panel under <Ui k="panel.nav.people panel.people.pairDevice" />. Details: [Connect a device](/docs/tv/connect).
+
+On a guest server, the TV also displays a QR code. Open the invitation on your phone and tap **Scan QR from the TV**. Enter the six-character code manually if the camera is unavailable.
 
 ## Update
 

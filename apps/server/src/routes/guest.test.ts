@@ -41,6 +41,13 @@ describe('guest invitations', () => {
     expect((await app.inject({ url: '/api/health', headers: guestHeaders })).statusCode).toBe(200)
     expect((await app.inject({ method: 'HEAD', url: '/activate', headers: guestHeaders })).statusCode).toBe(200)
     expect((await app.inject({ method: 'HEAD', url: '/activate' })).statusCode).toBe(404)
+    const invitation = await app.inject({ url: '/activate', headers: guestHeaders })
+    expect(invitation.headers['permissions-policy']).toBe('camera=(self), microphone=()')
+    const qr = await app.inject({ url: '/activate-qr.js', headers: guestHeaders })
+    expect(qr.statusCode).toBe(200)
+    expect(qr.headers['content-type']).toContain('text/javascript')
+    expect(qr.headers['x-content-type-options']).toBe('nosniff')
+    expect((await app.inject({ url: '/activate-qr.js' })).statusCode).toBe(404)
     for (const url of ['/panel/', '/api/overview', '/guest-invites', '/api/auth/setup', '/api/diagnostics/']) {
       expect((await app.inject({ url, headers: guestHeaders, cookies: owner })).statusCode).toBe(404)
     }

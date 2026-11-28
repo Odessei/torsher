@@ -1,6 +1,8 @@
 import type { FastifyReply } from 'fastify'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { randomBytes } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { and, eq, gt, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import { DEVICE_TOKEN_COOKIE, deviceCookieOptions } from '../config.ts'
@@ -18,21 +20,24 @@ const CLAIM_WINDOW = 60 * 1000
 const attemptsByIp = createRateLimiter({ limit: 20, windowMs: CLAIM_WINDOW })
 const attemptsByInvite = createRateLimiter({ limit: 8, windowMs: CLAIM_WINDOW })
 const inviteToken = z.string().regex(/^[\w-]{43}$/)
+const resolvePackage = createRequire(import.meta.url).resolve
+let qrDecoder: Promise<string> | undefined
 
 function page(reply: FastifyReply, owner: boolean) {
   const nonce = randomBytes(18).toString('base64')
   return reply.header('Cache-Control', 'no-store')
     .header('Referrer-Policy', 'no-referrer')
-    .header('Content-Security-Policy', `default-src 'none'; script-src 'self'; style-src 'nonce-${nonce}'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`)
+    .header('Content-Security-Policy', `default-src 'none'; script-src 'self'; style-src 'nonce-${nonce}'; connect-src 'self'; media-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`)
+    .header('Permissions-Policy', owner ? 'camera=(), microphone=()' : 'camera=(self), microphone=()')
     .type('text/html; charset=utf-8')
     .send(guestPage(owner).replace('GUEST_NONCE', nonce))
 }
 
-function script(reply: FastifyReply) {
+function script(reply: FastifyReply, body = guestPageScript) {
   return reply.header('Cache-Control', 'no-store')
     .header('X-Content-Type-Options', 'nosniff')
     .type('text/javascript; charset=utf-8')
-    .send(guestPageScript)
+    .send(body)
 }
 
 export const guestRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -40,6 +45,12 @@ export const guestRoutes: FastifyPluginAsyncZod = async (app) => {
     isGuestRequest(request) ? page(reply, false) : reply.code(404).send())
   app.get('/activate.js', (request, reply) =>
     isGuestRequest(request) ? script(reply) : reply.code(404).send())
+  app.get('/activate-qr.js', async (request, reply) => {
+    if (!isGuestRequest(request))
+      return reply.code(404).send()
+    qrDecoder ??= readFile(resolvePackage('jsqr'), 'utf8')
+    return script(reply, await qrDecoder)
+  })
   app.get('/guest-invites', { onRequest: requireOwner }, (_request, reply) =>
     guestHost() ? page(reply, true) : reply.code(404).send())
   app.get('/guest-invites.js', { onRequest: requireOwner }, (_request, reply) =>

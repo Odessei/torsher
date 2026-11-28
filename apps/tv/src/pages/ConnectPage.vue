@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { renderSVG } from 'uqr'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import ActionButton from '../components/ActionButton.vue'
@@ -48,6 +49,11 @@ const { phase, code, retry, restart } = usePairing(async () => {
 }, shouldPair)
 
 const loading = useHeldLoading(() => phase.value === 'loading')
+const qr = computed(() => {
+  if (!guest.value || !isTv || !code.value)
+    return undefined
+  return `data:image/svg+xml,${encodeURIComponent(renderSVG(`torsher:tv:${code.value}`, { border: 4, ecc: 'M' }))}`
+})
 </script>
 
 <template>
@@ -66,7 +72,7 @@ const loading = useHeldLoading(() => phase.value === 'loading')
           Открой ссылку из приглашения в этом браузере. Если её нет, попроси владельца прислать новую.
         </p>
         <p v-else-if="guest">
-          Открой приглашение на телефоне и введи код с этого экрана.
+          Открой приглашение на телефоне и отсканируй QR-код с экрана.
         </p>
         <ol v-else class="connect__steps">
           <li class="connect__step">
@@ -123,7 +129,8 @@ const loading = useHeldLoading(() => phase.value === 'loading')
         </template>
         <AppLoader v-else-if="loading || !code" />
         <template v-else>
-          <p class="connect__code">
+          <img v-if="qr" :src="qr" class="connect__qr" alt="QR-код для подключения телевизора">
+          <p class="connect__code" :class="{ 'connect__code--compact': qr }">
             {{ formatCode(code) }}
           </p>
           <p class="connect__note">
@@ -237,6 +244,18 @@ const loading = useHeldLoading(() => phase.value === 'loading')
   line-height: 1;
   letter-spacing: 0.08em;
   white-space: nowrap;
+}
+
+.connect__qr {
+  display: block;
+  width: calc(var(--u) * 226);
+  height: auto;
+  margin-bottom: var(--space-4);
+  background: #fff;
+}
+
+.connect__code--compact {
+  font-size: calc(var(--u) * 50);
 }
 
 .connect__note {

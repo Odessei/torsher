@@ -1552,7 +1552,7 @@ it('audits every root and /emby protected route, including HEAD, before validati
     '/Users/Public',
     '/Users/AuthenticateByName',
   ])
-  const guestOnlyPaths = new Set(['/activate', '/activate.js'])
+  const guestOnlyPaths = new Set(['/activate', '/activate.js', '/activate-qr.js'])
   expect(routes.length).toBeGreaterThan(80)
   for (const route of routes) {
     if (publicPaths.has(route.url.replace(/^\/emby/, '')))

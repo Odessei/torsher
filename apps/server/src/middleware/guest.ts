@@ -103,7 +103,7 @@ export async function guestBoundary(request: FastifyRequest, reply: FastifyReply
   const read = request.method === 'GET' || request.method === 'HEAD'
   const path = request.url.split('?')[0]
   if (read && (
-    path === '/' || path === '/activate' || path === '/activate.js'
+    path === '/' || path === '/activate' || path === '/activate.js' || path === '/activate-qr.js'
     || /^\/(?:assets\/[\w.-]+|favicon\.(?:ico|svg)|apple-touch-icon\.png)$/.test(path)
   )) {
     return
