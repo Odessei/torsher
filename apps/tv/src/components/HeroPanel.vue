@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useResumeLabels } from '../composables/useResumeLabels.ts'
 import { useTitleMeta } from '../composables/useTitleMeta.ts'
+import { phoneLayout } from '../phoneLayout.ts'
 import { lacksAddonStreams, lacksSources } from '../serverSources.ts'
 import AppIcon from './AppIcon.vue'
 import KeyHint from './KeyHint.vue'
@@ -78,7 +79,7 @@ const meta = computed(() => {
     <div :key="hero.card.id" class="hero" :class="{ 'hero--compact': compact }">
       <h1 class="hero__heading">
         <img
-          v-if="logo"
+          v-if="logo && !phoneLayout"
           class="hero__logo"
           :src="logo"
           :alt="hero.card.title"

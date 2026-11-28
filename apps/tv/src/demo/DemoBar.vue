@@ -41,6 +41,10 @@ const text = computed(() => {
 </template>
 
 <style scoped>
+html.phone-layout .demo-bar:not(.player) {
+  bottom: calc(var(--phone-nav-height) + 8px);
+}
+
 /* Пиксели, а не `--u`: полоса — часть страницы сайта, а не экрана витрины */
 .demo-bar {
   position: fixed;
