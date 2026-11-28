@@ -12,7 +12,7 @@ import { requireOwner } from '../middleware/auth.ts'
 import { guestHost, isGuestRequest } from '../middleware/guest.ts'
 import { hashToken, normalizeCode } from '../services/devices/index.ts'
 import { getProfile } from '../services/profiles/index.ts'
-import { createRateLimiter } from '../utils/rateLimit.ts'
+import { createRateLimiter, ipRateLimit } from '../utils/rateLimit.ts'
 import { guestPage, guestPageScript } from './guestPage.ts'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -21,7 +21,6 @@ const attemptsByIp = createRateLimiter({ limit: 20, windowMs: CLAIM_WINDOW })
 const attemptsByInvite = createRateLimiter({ limit: 8, windowMs: CLAIM_WINDOW })
 const inviteToken = z.string().regex(/^[\w-]{43}$/)
 const resolvePackage = createRequire(import.meta.url).resolve
-let qrDecoder: Promise<string> | undefined
 
 function page(reply: FastifyReply, owner: boolean) {
   const nonce = randomBytes(18).toString('base64')
@@ -41,15 +40,16 @@ function script(reply: FastifyReply, body = guestPageScript) {
 }
 
 export const guestRoutes: FastifyPluginAsyncZod = async (app) => {
+  const qrDecoder = guestHost() ? await readFile(resolvePackage('jsqr'), 'utf8') : undefined
+
   app.get('/activate', (request, reply) =>
     isGuestRequest(request) ? page(reply, false) : reply.code(404).send())
   app.get('/activate.js', (request, reply) =>
     isGuestRequest(request) ? script(reply) : reply.code(404).send())
-  app.get('/activate-qr.js', async (request, reply) => {
-    if (!isGuestRequest(request))
+  app.get('/activate-qr.js', { onRequest: ipRateLimit(30) }, (request, reply) => {
+    if (!qrDecoder || !isGuestRequest(request))
       return reply.code(404).send()
-    qrDecoder ??= readFile(resolvePackage('jsqr'), 'utf8')
-    return script(reply, await qrDecoder)
+    return script(reply, qrDecoder)
   })
   app.get('/guest-invites', { onRequest: requireOwner }, (_request, reply) =>
     guestHost() ? page(reply, true) : reply.code(404).send())
