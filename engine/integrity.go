@@ -60,7 +60,7 @@ func (a *api) verifyHoles(t *torrent.Torrent) int {
 		offset += file.Length
 	}
 
-	var pieces []*torrent.Piece
+	var pieces []torrent.Piece
 
 	for index := range suspects {
 		if piece := t.Piece(index); piece.State().Complete {
@@ -84,8 +84,8 @@ func (a *api) verifyHoles(t *torrent.Torrent) int {
 // числу ядер. `VerifyData` библиотеки возвращается, как только хэш посчитан, а
 // отметку кусок пишет уже после (`Marking`): без ожидания прошедший проверку
 // кусок ещё выглядел бы недокачанным
-func (a *api) verifyPieces(t *torrent.Torrent, pieces []*torrent.Piece) {
-	queue := make(chan *torrent.Piece)
+func (a *api) verifyPieces(t *torrent.Torrent, pieces []torrent.Piece) {
+	queue := make(chan torrent.Piece)
 	var wg sync.WaitGroup
 
 	for range runtime.NumCPU() {
@@ -109,7 +109,7 @@ func (a *api) verifyPieces(t *torrent.Torrent, pieces []*torrent.Piece) {
 	wg.Wait()
 }
 
-func waitPieceSettled(piece *torrent.Piece) {
+func waitPieceSettled(piece torrent.Piece) {
 	deadline := time.Now().Add(settleTimeout)
 
 	for time.Now().Before(deadline) {

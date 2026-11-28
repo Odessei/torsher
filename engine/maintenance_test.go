@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	g "github.com/anacrolix/generics"
 	"github.com/anacrolix/torrent"
 	"io"
 	"net/http"
@@ -74,7 +75,7 @@ func TestMaintenanceOrphanFenceRestartAndCancellation(t *testing.T) {
 	var hash metainfo.Hash
 	_ = hash.FromHexString(manifest.InfoHash)
 	for i := 0; i < 2; i++ {
-		if err := a.completion.Set(metainfo.PieceKey{InfoHash: hash, Index: i}, true); err != nil {
+		if err := a.completion.Set(metainfo.PieceKey{InfoHash: hash, Index: i}, g.Some(true)); err != nil {
 			t.Fatal(err)
 		}
 	}

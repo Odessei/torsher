@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	g "github.com/anacrolix/generics"
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/anacrolix/torrent/storage"
@@ -1113,7 +1114,7 @@ func (a *api) forget(w http.ResponseWriter, r *http.Request) {
 
 	if deleteFiles {
 		for index := range info.NumPieces() {
-			if err := a.completion.Set(metainfo.PieceKey{InfoHash: hash, Index: index}, false); err != nil {
+			if err := a.completion.Set(metainfo.PieceKey{InfoHash: hash, Index: index}, g.Some(false)); err != nil {
 				a.logger.Warn("reset piece completion", "infoHash", hash.HexString(), "err", err)
 				break
 			}

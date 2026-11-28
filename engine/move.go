@@ -557,7 +557,7 @@ func (a *api) reopen(mi *metainfo.MetaInfo, dir string, saved savedTorrent, comp
 	<-t.GotInfo()
 	a.verifyHoles(t)
 
-	var lost []*torrent.Piece
+	var lost []torrent.Piece
 	for _, index := range complete {
 		if piece := t.Piece(index); !piece.State().Complete {
 			lost = append(lost, piece)
