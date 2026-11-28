@@ -125,7 +125,7 @@ func TestMaintenanceOrphanFenceRestartAndCancellation(t *testing.T) {
 
 type failingCompletion struct{ storage.PieceCompletion }
 
-func (f failingCompletion) Set(metainfo.PieceKey, bool) error {
+func (f failingCompletion) Set(metainfo.PieceKey, g.Option[bool]) error {
 	return errors.New("injected completion failure")
 }
 func TestMaintenanceNeverAcknowledgesFailedDetach(t *testing.T) {
