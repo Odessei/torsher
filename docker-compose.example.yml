@@ -7,7 +7,7 @@
 
 services:
   torsher:
-    image: ghcr.io/torsher-app/torsher:latest
+    image: ghcr.io/torsher-app/torsher:latest@sha256:d0ce744a4b436d0e043a79a3dc07d9103073a264a4f34c53419eb95b47fe5980
     container_name: torsher
     restart: unless-stopped
     ports:
@@ -56,7 +56,7 @@ services:
   # the indexers you are allowed to use. The Torsher setup wizard finds it
   # at http://prowlarr:9696 and asks only for its API key
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
+    image: lscr.io/linuxserver/prowlarr:latest@sha256:2806c9b763810589c42157730d547c293639e55c7610e9f5069314854639ec48
     container_name: prowlarr
     restart: unless-stopped
     profiles: [prowlarr]
