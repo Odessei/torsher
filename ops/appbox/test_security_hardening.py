@@ -61,6 +61,23 @@ class AppboxHardeningTest(unittest.TestCase):
             with self.assertRaises(VulnerabilityDatabaseError):
                 database_timestamp(cache, now + datetime.timedelta(seconds=1))
 
+    def test_database_timestamp_accepts_trivy_rfc3339_on_python_310(self):
+        from security import database_timestamp
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory)
+            (cache / "db").mkdir()
+            metadata = cache / "db" / "metadata.json"
+            now = datetime.datetime(2026, 1, 2, tzinfo=datetime.timezone.utc)
+            for value, expected in (
+                ("2026-01-01T00:00:00Z", "2026-01-01T00:00:00+00:00"),
+                ("2026-01-01T00:00:00.7Z", "2026-01-01T00:00:00.700000+00:00"),
+                ("2026-01-01T00:00:00.637500001Z", "2026-01-01T00:00:00.637500+00:00"),
+                ("2026-01-01T00:00:00.12+01:00", "2026-01-01T00:00:00.120000+01:00"),
+            ):
+                with self.subTest(value=value):
+                    metadata.write_text(json.dumps({"UpdatedAt": value}))
+                    self.assertEqual(database_timestamp(cache, now), expected)
+
     def test_tag_digest_and_registry_port(self):
         from pilot import image_repository
         digest = "sha256:" + "a" * 64
