@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   back: vi.fn(),
   body: vi.fn(),
+  status: vi.fn(),
   select: (_id: string) => {},
   backScreen: () => {},
   library: () => {},
@@ -27,7 +28,7 @@ vi.mock('../api.ts', () => ({
   api: { titles: { postTitleOpen: mocks.open } },
 }))
 vi.mock('@torsher/api-client', () => ({
-  getErrorStatus: () => 422,
+  getErrorStatus: mocks.status,
   getErrorBody: mocks.body,
 }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
@@ -128,9 +129,25 @@ async function mount(props = {}) {
 }
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.status.mockReturnValue(422)
   mocks.body.mockResolvedValue({ kind: 'candidate_gone' })
 })
 afterEach(() => cleanup?.())
+
+it.each([
+  [422, 'source_unavailable', 'sourceUnavailable'],
+  [409, 'source_conflict', 'sourceConflict'],
+] as const)('shows a specific selected source error for %s %s', async (status, kind, key) => {
+  mocks.open.mockRejectedValue(new Error('Source could not open'))
+  mocks.status.mockReturnValue(status)
+  mocks.body.mockResolvedValue({ kind })
+  await mount()
+  mocks.select('selected')
+  await settle()
+
+  expect(mocks.message()).toBe(`watch.errors.${key}`)
+  expect(mocks.push).not.toHaveBeenCalled()
+})
 
 it('opens the selected source once and keeps its season', async () => {
   const reply = Promise.withResolvers<{ torrentId: string }>()

@@ -33,6 +33,7 @@ import {
   titleLibrary,
   titleLibraryQuery,
   titleOpen,
+  titleOpenConflict,
   titleParams,
   titleProgress,
   titleProgressQuery,
@@ -99,6 +100,7 @@ import {
   getTorrent,
   liveTorrents,
   torrentsByInfoHash,
+  TorrentSessionConflictError,
 } from '../services/torrents/index.ts'
 import { getSeason, getTitle, TmdbError } from '../services/tmdb/index.ts'
 import { parseCatalogId } from '../services/tmdb/mappers.ts'
@@ -667,7 +669,7 @@ export const titleRoutes: FastifyPluginAsyncZod = async (app) => {
         response: {
           200: titleOpen,
           400: messageResponse,
-          409: messageResponse,
+          409: titleOpenConflict,
           ...guardResponses,
           ...tmdbResponses,
           422: watchErrorResponse,
@@ -689,6 +691,12 @@ export const titleRoutes: FastifyPluginAsyncZod = async (app) => {
         )
       }
       catch (err) {
+        if (err instanceof TorrentSessionConflictError) {
+          return reply.code(409).send({
+            message: err.message,
+            kind: 'source_conflict',
+          })
+        }
         if (err instanceof WatchError)
           return reply.code(422).send({ message: err.message, kind: err.kind })
 

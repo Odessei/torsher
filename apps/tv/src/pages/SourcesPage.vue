@@ -68,7 +68,14 @@ async function openErrorKey(err: unknown) {
     case 422: {
       const body = await getErrorBody<{ kind?: string }>(err)
 
+      if (body?.kind === 'source_unavailable')
+        return 'sourceUnavailable'
       return body?.kind === 'candidate_gone' ? 'gone' : 'notPlayable'
+    }
+    case 409: {
+      const body = await getErrorBody<{ kind?: string }>(err)
+
+      return body?.kind === 'source_conflict' ? 'sourceConflict' : 'unknown'
     }
     case 503:
       return 'engine'
