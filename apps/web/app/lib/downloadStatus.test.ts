@@ -14,6 +14,20 @@ function cached(stopped: Torrent['seeding']['stopped']) {
 }
 
 describe('downloadViewOf', () => {
+  it.each([
+    ['http_status', 'trackerError'],
+    ['timeout', 'trackerError'],
+    ['storage', 'stalled'],
+    [null, 'stalled'],
+  ])('distinguishes a stalled download with tracker code %s', (trackerErrorCode, status) => {
+    expect(downloadViewOf({
+      ...cached(null),
+      state: 'stalled',
+      progress: { downloaded: 0, wanted: 128 },
+      seedObligation: { trackerErrorCode },
+    })).toMatchObject({ status, group: 'active' })
+  })
+
   it('просмотренное, которое раздаётся, — в группе «Раздаются»', () => {
     expect(downloadViewOf(cached(null))).toMatchObject({
       status: 'partial',

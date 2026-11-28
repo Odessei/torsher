@@ -2446,6 +2446,7 @@
         "queued": "Queued",
         "downloading": "Downloading",
         "stalled": "Waiting for peers",
+        "trackerError": "Tracker error",
         "paused": "Paused",
         "pausedStorage": "Low disk space",
         "seeding": "Seeding",
@@ -2461,7 +2462,8 @@
       },
       "problems": {
         "pausedStorage": "Free space is below the reserve and there is nothing to free: everything in the cache is being watched or kept. Delete what you don't need or lower the reserve in Storage — the download resumes by itself.",
-        "stalled": "Nobody is seeding this torrent right now. Torsher continues as soon as it finds peers.",
+        "stalled": "Torsher hasn't found peers yet. The download continues as soon as it connects to one.",
+        "trackerError": "Torsher could not get the peer list from the tracker. It will retry automatically.",
         "failed": "Peers didn't send the file list. Check the magnet link and try again, or add the .torrent file."
       },
       "zones": {

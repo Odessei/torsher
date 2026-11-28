@@ -23,6 +23,7 @@ export type DownloadStatus
     | 'queued'
     | 'downloading'
     | 'stalled'
+    | 'trackerError'
     | 'paused'
     | 'pausedStorage'
     | 'seeding'
@@ -48,7 +49,9 @@ export interface DownloadView {
 type ViewTorrent = Pick<
   Torrent,
   'status' | 'state' | 'streaming' | 'pauseReason' | 'progress' | 'seeding'
->
+> & {
+  seedObligation?: Pick<NonNullable<Torrent['seedObligation']>, 'trackerErrorCode'> | null
+}
 
 /**
  * Одно место, где состояние раздачи превращается в статус строки, иконку,
@@ -113,8 +116,16 @@ function stateViewOf(torrent: ViewTorrent): DownloadView {
       return view('queued', 'muted', ListEndIcon, 'outline', 'active')
     case 'downloading':
       return view('downloading', 'info', ArrowDownToLineIcon, 'info', 'active')
-    case 'stalled':
-      return view('stalled', 'warning', ClockIcon, 'warning', 'active')
+    case 'stalled': {
+      const trackerError = torrent.seedObligation?.trackerErrorCode
+      return view(
+        trackerError && trackerError !== 'storage' ? 'trackerError' : 'stalled',
+        'warning',
+        ClockIcon,
+        'warning',
+        'active',
+      )
+    }
     case 'seeding':
       return view(
         'seeding',
