@@ -759,6 +759,47 @@ describe('post /api/titles/:id/watch', () => {
 
 describe('экран «Источники» и «Файлы»', () => {
   it.each([
+    ['missing torrent file', 422, 'source_unavailable'],
+    ['existing private tracker session', 409, 'source_conflict'],
+  ] as const)('reports %s when opening a selected source', async (_reason, status, kind) => {
+    if (kind === 'source_unavailable') {
+      overrides['GET a.indexer.example/torznab/api'] = () =>
+        new Response(searchXml.replace(/<torznab:attr name="infohash"[^>]*\/>/, ''))
+      overrides['GET indexer.example/download/101'] = () =>
+        new Response('Upstream error', { status: 500 })
+    }
+    else {
+      getDb().insert(torrents).values({
+        infoHash: packDetails.infoHash,
+        name: packDetails.name,
+        source: 'file',
+        status: 'ready',
+        isPrivate: true,
+        trackerFingerprint: 'existing-tracker',
+      }).run()
+    }
+
+    const list = await app.inject({
+      url: `/api/titles/${TITLE}/sources?all=1`,
+      cookies: owner,
+    })
+    const candidate = list.json().candidates.find((item: { quality: string }) => item.quality === '1080p')
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/titles/${TITLE}/open`,
+      cookies: owner,
+      payload: { candidateId: candidate.id },
+    })
+    expect(response.statusCode).toBe(status)
+    expect(response.json().kind).toBe(kind)
+    const stored = getDb().select().from(torrents).all()
+    if (kind === 'source_conflict')
+      expect(stored).toMatchObject([{ trackerFingerprint: 'existing-tracker', isPrivate: true }])
+    else
+      expect(stored).toEqual([])
+  })
+
+  it.each([
     { query: undefined, confidence: 'medium' },
     { query: 'Harbor archives', confidence: 'medium' },
     { query: undefined, confidence: 'low' },

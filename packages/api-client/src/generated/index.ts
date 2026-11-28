@@ -3295,7 +3295,12 @@ export interface TitleWatchInput {
 
 export interface WatchErrorResponseInput {
   message: string;
-  kind: "no_sources" | "not_playable" | "candidate_gone";
+  kind: "no_sources" | "not_playable" | "candidate_gone" | "source_unavailable";
+}
+
+export interface TitleOpenConflictInput {
+  message: string;
+  kind?: "source_conflict";
 }
 
 export interface OpenTitleInput {
@@ -13707,7 +13712,12 @@ export interface TitleWatch {
 
 export interface WatchErrorResponse {
   message: string;
-  kind: "no_sources" | "not_playable" | "candidate_gone";
+  kind: "no_sources" | "not_playable" | "candidate_gone" | "source_unavailable";
+}
+
+export interface TitleOpenConflict {
+  message: string;
+  kind?: "source_conflict";
 }
 
 export interface OpenTitle {
@@ -21148,7 +21158,10 @@ export type GetTitleProgressError = MessageResponse | MinePersonalError;
 export type GetTitleUpNextError = MessageResponse;
 
 export type PostTitleOpenError =
-  MessageResponse | WatchErrorResponse | EngineUnavailableResponse;
+  | MessageResponse
+  | TitleOpenConflict
+  | WatchErrorResponse
+  | EngineUnavailableResponse;
 
 export type GetTitleFilesError = MessageResponse;
 

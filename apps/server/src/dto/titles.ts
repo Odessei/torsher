@@ -247,9 +247,16 @@ export const titleWatch = z
 export const watchErrorResponse = z
   .object({
     message: z.string(),
-    kind: z.enum(['no_sources', 'not_playable', 'candidate_gone']),
+    kind: z.enum(['no_sources', 'not_playable', 'candidate_gone', 'source_unavailable']),
   })
   .meta({ id: 'watchErrorResponse' })
+
+export const titleOpenConflict = z
+  .object({
+    message: z.string(),
+    kind: z.literal('source_conflict').optional(),
+  })
+  .meta({ id: 'titleOpenConflict' })
 
 export const openTitle = z
   .object({

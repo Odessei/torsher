@@ -46,7 +46,11 @@ const DOWNLOAD_TIMEOUT_MS = 5000
  * кандидатов не добавилась или в ней нет нужной серии, `candidate_gone` —
  * выбранной раздачи больше нет в результатах поиска.
  */
-export type WatchErrorKind = 'no_sources' | 'not_playable' | 'candidate_gone'
+export type WatchErrorKind
+  = | 'no_sources'
+    | 'not_playable'
+    | 'candidate_gone'
+    | 'source_unavailable'
 
 export class WatchError extends Error {
   readonly kind: WatchErrorKind
@@ -340,6 +344,8 @@ export async function openCandidate(
   catch (err) {
     if (err instanceof TorrentSessionConflictError)
       throw err
+    if (err instanceof SourceError)
+      throw new WatchError('source_unavailable', 'The source did not provide a torrent file')
     if (isSkippable(err))
       throw new WatchError('not_playable', 'The release could not be added')
 
