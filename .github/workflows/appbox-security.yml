@@ -1,161 +1,47 @@
-name: Appbox security checks
+name: Package Appbox rollout candidate
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '45 3 * * *'
 
 permissions:
   contents: read
 
 jobs:
-  github-journal:
+  package:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SOURCE_SHA: d5d65cabd6f8f5e67df9630e593e5b1db1252b00
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          ref: d5d65cabd6f8f5e67df9630e593e5b1db1252b00
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Verify GitHub evidence and Appbox reconciliation
-        run: python3 -m unittest discover -s ops/appbox
-
-  dependencies:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Scan lockfiles with OSV
+      - name: Build and scan an immutable Appbox candidate
         run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          image="torsher-appbox:$SOURCE_SHA"
+          version=$(node -p "require('./apps/server/package.json').version")
+          docker buildx build --platform linux/amd64 --load --tag "$image" \
+            --label "org.opencontainers.image.revision=$SOURCE_SHA" \
+            --build-arg "TORSHER_VERSION=$version" --build-arg "TORSHER_COMMIT=$SOURCE_SHA" .
+          mkdir "$RUNNER_TEMP/appbox-candidate"
           bash ops/appbox/install-security-tools.sh "$RUNNER_TEMP/appbox-tools"
-          status=0
-          "$RUNNER_TEMP/appbox-tools/osv-scanner" scan source --recursive --format json --output-file "$RUNNER_TEMP/osv.json" . || status=$?
-          if [ "$status" -gt 1 ]; then exit "$status"; fi
-          python3 - "$RUNNER_TEMP/osv.json" "$RUNNER_TEMP/dependency-findings.json" <<'PY'
-          import json
-          import subprocess
-          import sys
-          sys.path.insert(0, "ops/appbox")
-          from security import ADVISORY, package_name, version
-          with open(sys.argv[1]) as source:
-              data = json.load(source)
-          records = {}
-          for result in data.get("results") or []:
-              for entry in result.get("packages") or []:
-                  package = entry["package"]
-                  name, installed = package_name(package.get("name")), version(package.get("version"))
-                  for vulnerability in entry.get("vulnerabilities") or []:
-                      advisory = vulnerability["id"]
-                      aliases = [item for item in vulnerability.get("aliases") or []
-                                 if ADVISORY.fullmatch(item)]
-                      if ADVISORY.fullmatch(advisory) or aliases:
-                          advisory = advisory if ADVISORY.fullmatch(advisory) else aliases[0]
-                          records[(advisory, name, installed)] = {
-                              "advisory": advisory, "aliases": sorted(set(aliases) - {advisory}),
-                              "package": name, "installed": installed,
-                          }
-          found = sorted({key[0] for key in records})
-          sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-          with open(sys.argv[2], "w") as output:
-              json.dump({"check": "osv", "sha": sha, "findings": list(records.values())}, output, indent=2)
-          print("OSV unique CVE/GHSA advisories:", len(found))
-          for advisory in found:
-              print(advisory)
-          PY
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dependency-findings
-          path: ${{ runner.temp }}/dependency-findings.json
-          if-no-files-found: error
-
-  traefik-pilot:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Scan and exercise the pinned Traefik candidate
-        env:
-          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CANDIDATE_PR: ${{ github.event.pull_request.number }}
-        run: |
-          bash ops/appbox/install-security-tools.sh "$RUNNER_TEMP/appbox-tools"
-          set -- --candidate-only
-          if [ -n "$CANDIDATE_PR" ]; then set -- "$@" --pr "$CANDIDATE_PR"; fi
-          python3 ops/appbox/pilot.py --state "$RUNNER_TEMP/appbox-pilot" \
-            --trivy "$RUNNER_TEMP/appbox-tools/trivy" --sha "$CANDIDATE_SHA" "$@"
-          cat "$RUNNER_TEMP/appbox-pilot/summary.log"
-
-  compose-images:
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [torsher, prowlarr, jackett, flaresolverr]
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Scan the pinned Compose image
-        env:
-          APPBOX_IMAGE_SERVICE: ${{ matrix.service }}
-        run: |
-          bash ops/appbox/install-security-tools.sh "$RUNNER_TEMP/appbox-tools"
-          image=$(python3 - <<'PY'
-          import json
-          import os
-          import re
-          with open('ops/appbox/compose.images.json') as f:
-              reference = json.load(f)['services'][os.environ['APPBOX_IMAGE_SERVICE']]['image']
-          if not re.fullmatch(r'[a-z0-9._:/-]+:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}', reference):
-              raise SystemExit('Compose image must use both an explicit tag and digest')
-          print(reference)
-          PY
-          )
-          tagged=${image%@*}
-          pinned="${tagged%:*}@${image##*@}"
-          docker pull --platform linux/amd64 "$pinned"
-          python3 ops/appbox/scan_ci_image.py --image "$pinned" --manifest-digest "${image##*@}" \
-            --trivy "$RUNNER_TEMP/appbox-tools/trivy" --output "$RUNNER_TEMP/compose-image.json"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: trivy-compose-${{ matrix.service }}
-          path: ${{ runner.temp }}/compose-image.json
-          if-no-files-found: error
-
-  fork-image:
-    runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Build and scan one linux/amd64 image
-        run: |
-          bash ops/appbox/install-security-tools.sh "$RUNNER_TEMP/appbox-tools"
-          docker buildx build --platform linux/amd64 --load --tag appbox-torsher-candidate --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" .
-          python3 ops/appbox/scan_ci_image.py --image appbox-torsher-candidate --sqlite \
-            --trivy "$RUNNER_TEMP/appbox-tools/trivy" --output "$RUNNER_TEMP/fork-image.json"
-          docker run --rm --network none --entrypoint sh appbox-torsher-candidate \
+          python3 ops/appbox/scan_ci_image.py --image "$image" --sqlite \
+            --trivy "$RUNNER_TEMP/appbox-tools/trivy" \
+            --output "$RUNNER_TEMP/appbox-candidate/evidence.json"
+          docker run --rm --network none --entrypoint sh "$image" \
             -c 'test -x /usr/local/bin/torsher-engine && test -f /app/tv/dist/index.html && test -f /app/web/.output/public/index.html'
+          cd "$RUNNER_TEMP/appbox-candidate"
+          docker save "$image" | gzip -1 > image.tar.gz
+          sha256sum image.tar.gz > checksums.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: trivy-fork-image
-          path: ${{ runner.temp }}/fork-image.json
+          name: appbox-rollout-candidate-d5d65cab
+          path: ${{ runner.temp }}/appbox-candidate/
+          compression-level: 0
+          retention-days: 7
           if-no-files-found: error
