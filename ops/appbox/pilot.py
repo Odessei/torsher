@@ -14,6 +14,8 @@ import uuid
 
 from security import ADVISORY, DIGEST, Journal, docker_json, findings, report, run, version
 
+from proxy_config import owner_route
+
 HERE = Path(__file__).resolve().parent
 BACKEND = """
 const http = require('node:http')
@@ -25,7 +27,7 @@ http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'application/vnd.apple.mpegurl'})
     res.end('#EXTM3U\\n#EXTINF:1,\\nsegment')
   } else if (req.url === '/session') {
-    res.end(req.headers['x-forwarded-proto'] === 'http' ? 'inside' : 'bad')
+    res.end(req.headers['x-forwarded-proto'] === 'https' ? 'inside' : 'bad')
   } else {
     res.end('ok')
   }
@@ -152,19 +154,16 @@ def main():
         old_id = None if args.candidate_only else local_image(baseline)
         with tempfile.TemporaryDirectory(prefix="pilot-", dir=journal.root) as path:
             config = Path(path) / "pilot.yaml"
-            config.write_text(json.dumps({
-                "http": {
-                    "routers": {
-                        "trusted": {"rule": "Host(\u0060trusted.example.test\u0060)", "service": "media", "middlewares": ["allow"]},
-                        "outside": {"rule": "Host(\u0060outside.example.test\u0060)", "service": "media", "middlewares": ["deny"]},
-                    },
-                    "middlewares": {
-                        "allow": {"ipAllowList": {"sourceRange": ["127.0.0.1/32"]}},
-                        "deny": {"ipAllowList": {"sourceRange": ["192.0.2.0/24"]}},
-                    },
-                    "services": {"media": {"loadBalancer": {"servers": [{"url": "http://127.0.0.1:18080"}]}}},
-                },
-            }), encoding="utf-8")
+            test_config = owner_route(
+                "Host(`trusted.example.test`)", ["127.0.0.1/32"], 0, "http://127.0.0.1:18080",
+            )
+            test_config["http"]["routers"]["outside"] = {
+                "rule": "Host(`outside.example.test`)", "service": "media", "middlewares": ["deny"],
+            }
+            test_config["http"]["middlewares"]["deny"] = {
+                "ipAllowList": {"sourceRange": ["192.0.2.0/24"]},
+            }
+            config.write_text(json.dumps(test_config), encoding="utf-8")
             config.chmod(0o644)
             if args.trivy:
                 data = report(["image", "--image-src", "docker"], args.trivy,
