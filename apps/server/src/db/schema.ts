@@ -203,6 +203,9 @@ export const devices = sqliteTable('devices', {
     .notNull()
     .default('viewer'),
   ownerSessionVersion: integer('owner_session_version'),
+  guestProfileId: text('guest_profile_id').references(() => profiles.id, {
+    onDelete: 'cascade',
+  }),
   // null — профиль на устройстве ещё не выбран
   profileId: text('profile_id').references(() => profiles.id, {
     onDelete: 'set null',
@@ -235,6 +238,10 @@ export const devicePairings = sqliteTable(
     code: text('code').notNull(),
     state: text('state', { enum: pairingStates }).notNull(),
     type: text('type', { enum: deviceTypes }).notNull(),
+    guest: integer('guest', { mode: 'boolean' }).notNull().default(false),
+    guestProfileId: text('guest_profile_id').references(() => profiles.id, {
+      onDelete: 'cascade',
+    }),
     // Имя, которое дал владелец при подтверждении
     name: text('name'),
     ip: text('ip'),
@@ -251,6 +258,18 @@ export const devicePairings = sqliteTable(
 )
 
 export type DevicePairing = typeof devicePairings.$inferSelect
+
+export const guestInvites = sqliteTable('guest_invites', {
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
+  tokenHash: text('token_hash').notNull().unique(),
+  profileId: text('profile_id').notNull().references(() => profiles.id, {
+    onDelete: 'cascade',
+  }),
+  name: text('name').notNull(),
+  browserClaimed: integer('browser_claimed', { mode: 'boolean' }).notNull().default(false),
+  tvClaimed: integer('tv_claimed', { mode: 'boolean' }).notNull().default(false),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+})
 
 export const indexerManagerKinds = ['prowlarr', 'jackett'] as const
 

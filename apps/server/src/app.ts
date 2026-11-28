@@ -18,6 +18,8 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod'
 import { config } from './config.ts'
+import { guestBoundary } from './middleware/guest.ts'
+import { guestRoutes } from './routes/guest.ts'
 import { apiRoutes } from './routes/api.ts'
 import { jellyfinRoutes } from './routes/jellyfin.ts'
 import { registerClients } from './static.ts'
@@ -93,10 +95,13 @@ export function createApp(
     }
   })
 
+  app.addHook('onRequest', guestBoundary)
+
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
   app.decorateRequest('userId', '')
   app.decorateRequest('deviceId', null)
+  app.decorateRequest('guestProfileId', null)
   app.decorateRequest('profileId', '')
   app.decorateRequest('profileSelected', false)
 
@@ -155,6 +160,7 @@ export function createApp(
   // которые сервер отдаёт с того же origin
   app.register(apiRoutes, { prefix: '/api' })
   app.register(jellyfinRoutes)
+  app.register(guestRoutes)
 
   if (clients)
     registerClients(app, clients)

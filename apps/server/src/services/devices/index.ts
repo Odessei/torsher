@@ -91,12 +91,13 @@ function activePairingWithCode(code: string, now: Date) {
     .get()
 }
 
-export function countActivePairings(now = new Date()) {
+export function countActivePairings(now = new Date(), guest = false) {
   return getDb()
     .select({ id: devicePairings.id })
     .from(devicePairings)
     .where(
       and(
+        eq(devicePairings.guest, guest),
         eq(devicePairings.state, 'pending'),
         gt(devicePairings.expiresAt, now),
       ),
@@ -111,6 +112,7 @@ export function countActivePairings(now = new Date()) {
  */
 export function startPairing(input: {
   type: DeviceType
+  guest?: boolean
   ip?: string
   userAgent?: string
 }) {
@@ -137,6 +139,7 @@ export function startPairing(input: {
       code,
       state: 'pending',
       type: input.type,
+      guest: input.guest ?? false,
       ip: input.ip,
       userAgent: input.userAgent?.slice(0, 500),
       createdAt: now,
@@ -159,7 +162,11 @@ export function confirmPairing(input: {
     .select()
     .from(devicePairings)
     .where(
-      and(eq(devicePairings.code, code), eq(devicePairings.state, 'pending')),
+      and(
+        eq(devicePairings.code, code),
+        eq(devicePairings.state, 'pending'),
+        eq(devicePairings.guest, false),
+      ),
     )
     .orderBy(desc(devicePairings.expiresAt))
     .get()
@@ -196,7 +203,7 @@ export type PairingPoll
  * Опрос по секрету. После подтверждения создаёт устройство и отдаёт токен
  * один раз: секрет гаснет. `undefined` — секрет неизвестен или уже использован.
  */
-export function pollPairing(secret: string): PairingPoll | undefined {
+export function pollPairing(secret: string, guest = false): PairingPoll | undefined {
   const now = new Date()
 
   return getDb().transaction((tx) => {
@@ -206,7 +213,7 @@ export function pollPairing(secret: string): PairingPoll | undefined {
       .where(eq(devicePairings.secretHash, hashToken(secret)))
       .get()
 
-    if (!pairing || pairing.state === 'claimed')
+    if (!pairing || pairing.guest !== guest || pairing.state === 'claimed')
       return undefined
 
     if (pairing.expiresAt <= now)
@@ -215,12 +222,17 @@ export function pollPairing(secret: string): PairingPoll | undefined {
     if (pairing.state === 'pending')
       return { status: 'pending' as const, expiresAt: pairing.expiresAt }
 
+    if (guest && !pairing.guestProfileId)
+      return undefined
+
     const token = randomBytes(32).toString('base64url')
     const device = tx
       .insert(devices)
       .values({
         name: pairing.name ?? '',
         type: pairing.type,
+        guestProfileId: pairing.guestProfileId,
+        profileId: pairing.guestProfileId,
         tokenHash: hashToken(token),
         lastIp: pairing.ip,
         userAgent: pairing.userAgent,

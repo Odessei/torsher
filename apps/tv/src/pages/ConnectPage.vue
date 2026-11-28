@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import ActionButton from '../components/ActionButton.vue'
@@ -24,6 +25,14 @@ const router = useRouter()
 
 const isTv = platform === 'tv'
 const address = panelAddress(window.location)
+const guest = ref(false)
+const guestBrowser = computed(() => guest.value && !isTv)
+const shouldPair = fetch('/activate', { method: 'HEAD', cache: 'no-store' })
+  .then(response => response.ok, () => false)
+  .then((enabled) => {
+    guest.value = enabled
+    return !guestBrowser.value
+  })
 
 const { phase, code, retry, restart } = usePairing(async () => {
   await resolveSession()
@@ -36,7 +45,7 @@ const { phase, code, retry, restart } = usePairing(async () => {
 
   // Дальше решает гейт: выбор профиля или сразу туда, куда шли
   void router.replace(safeNext(route.query.next) ?? '/')
-})
+}, shouldPair)
 
 const loading = useHeldLoading(() => phase.value === 'loading')
 </script>
@@ -53,7 +62,13 @@ const loading = useHeldLoading(() => phase.value === 'loading')
         <h1 class="connect__title">
           {{ isTv ? t("connect.titleTv") : t("connect.titleWeb") }}
         </h1>
-        <ol class="connect__steps">
+        <p v-if="guestBrowser">
+          Открой ссылку из приглашения в этом браузере. Если её нет, попроси владельца прислать новую.
+        </p>
+        <p v-else-if="guest">
+          Открой приглашение на телефоне и введи код с этого экрана.
+        </p>
+        <ol v-else class="connect__steps">
           <li class="connect__step">
             <span class="connect__number">1</span>
             <span>
@@ -81,6 +96,7 @@ const loading = useHeldLoading(() => phase.value === 'loading')
               @click="retry"
             />
             <ActionButton
+              v-if="!guest"
               v-focusable
               :label="t('connect.owner')"
               @click="signInAsOwner"
@@ -96,7 +112,7 @@ const loading = useHeldLoading(() => phase.value === 'loading')
       </div>
 
       <!-- Карточка кода держит размер во всех состояниях: экран не прыгает -->
-      <div class="connect__card" aria-live="polite">
+      <div v-if="!guestBrowser" class="connect__card" aria-live="polite">
         <template v-if="phase === 'error' && !loading">
           <p class="connect__error">
             {{ t("connect.error") }}
