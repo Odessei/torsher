@@ -18,6 +18,8 @@ export function createRateLimiter(options: {
   windowMs: number
 }): RateLimiter {
   const windows = new Map<string, { startedAt: number, count: number }>()
+  const maxKeys = 10_000
+  let nextSweep = 0
 
   function sweep(now: number) {
     for (const [key, entry] of windows) {
@@ -36,12 +38,16 @@ export function createRateLimiter(options: {
 
   return {
     hit(key, now = Date.now()) {
-      if (windows.size > 1000)
+      if (now >= nextSweep) {
         sweep(now)
+        nextSweep = now + Math.min(15_000, options.windowMs)
+      }
 
       const entry = windows.get(key)
 
       if (!entry || now - entry.startedAt >= options.windowMs) {
+        if (!entry && windows.size >= maxKeys)
+          return false
         windows.set(key, { startedAt: now, count: 1 })
         return true
       }
@@ -61,9 +67,13 @@ export function createRateLimiter(options: {
         : 0
     },
     reset(key) {
-      if (key === undefined)
+      if (key === undefined) {
         windows.clear()
-      else windows.delete(key)
+        nextSweep = 0
+      }
+      else {
+        windows.delete(key)
+      }
     },
   }
 }

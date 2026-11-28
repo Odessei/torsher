@@ -40,25 +40,27 @@ func isInside(base, path string) bool {
 // раздачи. Возвращает логический размер удалённых файлов, не свободные блоки. Файлы вне каталога
 // загрузок не трогает: путь из чужого `.torrent` не должен выйти наружу
 func deleteTorrentFiles(downloads string, info *metainfo.Info) (int64, error) {
-	base, err := filepath.Abs(downloads)
+	root, err := os.OpenRoot(downloads)
 	if err != nil {
 		return 0, err
 	}
+
+	defer root.Close()
 
 	var freed int64
 	var errs []error
 	dirs := map[string]bool{}
 
 	for _, file := range info.UpvertedFiles() {
-		path := filepath.Join(base, filePathOf(storage.FilePathMakerOpts{Info: info, File: &file}))
+		path := filePathOf(storage.FilePathMakerOpts{Info: info, File: &file})
 
-		if !isInside(base, path) {
+		if !isInside(".", path) {
 			errs = append(errs, fmt.Errorf("file %q is outside the downloads directory", path))
 			continue
 		}
 
 		for _, candidate := range []string{path, path + partFileSuffix} {
-			stat, err := os.Lstat(candidate)
+			stat, err := root.Lstat(candidate)
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
@@ -70,7 +72,7 @@ func deleteTorrentFiles(downloads string, info *metainfo.Info) (int64, error) {
 				continue
 			}
 
-			if err := os.Remove(candidate); err != nil {
+			if err := root.Remove(candidate); err != nil {
 				errs = append(errs, err)
 				continue
 			}
@@ -78,10 +80,10 @@ func deleteTorrentFiles(downloads string, info *metainfo.Info) (int64, error) {
 			freed += stat.Size()
 		}
 
-		addParentDirs(dirs, base, path)
+		addParentDirs(dirs, ".", path)
 	}
 
-	errs = append(errs, removeEmptyDirs(dirs))
+	errs = append(errs, removeEmptyDirs(dirs, root.Remove))
 
 	return freed, errors.Join(errs...)
 }
@@ -94,7 +96,7 @@ func addParentDirs(dirs map[string]bool, base, path string) {
 }
 
 // Глубокие каталоги — первыми; непустой (в нём чужие файлы) остаётся
-func removeEmptyDirs(dirs map[string]bool) error {
+func removeEmptyDirs(dirs map[string]bool, remove func(string) error) error {
 	var errs []error
 
 	for len(dirs) > 0 {
@@ -106,7 +108,7 @@ func removeEmptyDirs(dirs map[string]bool) error {
 		}
 		delete(dirs, deepest)
 
-		if err := os.Remove(deepest); err != nil && !errors.Is(err, fs.ErrNotExist) && !isNotEmpty(err) {
+		if err := remove(deepest); err != nil && !errors.Is(err, fs.ErrNotExist) && !isNotEmpty(err) {
 			errs = append(errs, err)
 		}
 	}

@@ -24,7 +24,7 @@ jobs:
       prerelease: ${{ steps.version.outputs.prerelease }}
       publish: ${{ steps.version.outputs.publish }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -55,11 +55,11 @@ jobs:
     if: needs.version.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
@@ -95,7 +95,7 @@ jobs:
         working-directory: .
 
       - if: env.KEYSTORE != ''
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - if: env.KEYSTORE != ''
@@ -147,7 +147,7 @@ jobs:
       # Multi-arch packages in GHCR take their description from the index
       DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -220,6 +220,18 @@ jobs:
           echo "Image size (linux/amd64, uncompressed): $((size / 1024 / 1024)) MiB" >> "$GITHUB_STEP_SUMMARY"
           docker rm -f torsher > /dev/null
 
+      - name: Scan the release preflight image
+        run: |
+          bash ops/appbox/install-security-tools.sh "$RUNNER_TEMP/appbox-tools"
+          python3 ops/appbox/scan_ci_image.py --image torsher:check --sqlite \
+            --trivy "$RUNNER_TEMP/appbox-tools/trivy" --output "$RUNNER_TEMP/release-preflight.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-release-preflight
+          path: ${{ runner.temp }}/release-preflight.json
+          if-no-files-found: error
+
       - if: env.PUBLISH == 'true'
         uses: docker/login-action@v4
         with:
@@ -290,7 +302,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - if: needs.webos.result == 'success'
         uses: actions/download-artifact@v4

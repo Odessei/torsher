@@ -78,6 +78,15 @@ def pinned(ref):
     return ref
 
 
+def image_repository(ref):
+    name = ref.split("@", 1)[0]
+    registry_path, separator, tail = name.rpartition("/")
+    repository = tail.split(":", 1)[0]
+    if not repository:
+        raise ValueError("image repository is missing")
+    return registry_path + separator + repository
+
+
 def local_image(ref, pull=False):
     try:
         obj = docker_json("image", "inspect", ref)[0]
@@ -124,7 +133,7 @@ def main():
     plan = json.loads((HERE / "traefik-pilot.json").read_text())
     candidate = pinned(json.loads((HERE / "compose.traefik-pilot.json").read_text())["services"]["traefik"]["image"])
     backend = pinned(json.loads((HERE / "compose.images.json").read_text())["services"]["torsher"]["image"])
-    baseline = pinned(candidate.split(":v", 1)[0] + "@" + plan["oldDigest"])
+    baseline = pinned(image_repository(candidate) + "@" + plan["oldDigest"])
     if not candidate.endswith("@" + plan["candidateDigest"]):
         raise ValueError("candidate settings disagree")
     journal.write("pilot_started", service="traefik", sha=args.sha, pr=args.pr,

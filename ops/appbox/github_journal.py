@@ -167,9 +167,16 @@ def validated_plan(entry, repositories):
         raise ValueError("A fix requires exact workflow paths")
     ids = advisories(entry.get("advisories") or [])
     kind, number = entry.get("kind"), entry.get("number")
-    keys = ids.copy()
+    keys = set(ids)
+    for key in entry.get("keys") or []:
+        if not isinstance(key, str):
+            continue
+        key_repo, separator, tail = key.partition(":")
+        key_kind, _, key_number = tail.partition(":")
+        if separator and key_repo == repo and key_kind in ALERTS and re.fullmatch(r"[1-9][0-9]{0,17}", key_number):
+            keys.add(key)
     if kind in ALERTS and positive(number):
-        keys.append(incident_for_alert(repo, kind, number))
+        keys.add(incident_for_alert(repo, kind, number))
     if not keys:
         raise ValueError("A fix must refer to a GitHub alert or advisory")
     vendor = entry.get("advisoryRepository")
@@ -177,7 +184,7 @@ def validated_plan(entry, repositories):
         raise ValueError("Invalid advisory repository")
     return {
         "repository": repo, "pr": entry["pr"], "sha": entry["sha"],
-        "workflows": sorted(set(paths)), "advisories": ids, "keys": keys,
+        "workflows": sorted(set(paths)), "advisories": ids, "keys": sorted(keys),
         "target": deployment_target(entry.get("target") or {}),
         "advisoryRepository": vendor,
     }
@@ -306,15 +313,7 @@ def alias_index(rows):
 
 
 def clean_fix(item, repositories):
-    entry = dict(item)
-    for key in item.get("keys") or []:
-        if not isinstance(key, str):
-            continue
-        repo, _, tail = key.partition(":")
-        kind, _, num = tail.partition(":")
-        if repo == entry.get("repository") and kind in ALERTS and num.isdecimal():
-            entry["kind"], entry["number"] = kind, int(num)
-    result = validated_plan(entry, repositories)
+    result = validated_plan(item, repositories)
     checks = []
     for check in item.get("checks") or []:
         path = check.get("workflow")
@@ -430,9 +429,11 @@ def existing_advisories(state):
                 except ValueError:
                     continue
                 if row.get("event") in {"finding", "advisory", "candidate_finding"}:
-                    advisory = row.get("advisory", row.get("id"))
-                    if matches(ADVISORY, advisory):
-                        results.add(advisory)
+                    aliases = row.get("aliases", [])
+                    identifiers = [row.get("advisory", row.get("id"))]
+                    if isinstance(aliases, list):
+                        identifiers.extend(aliases)
+                    results.update(value for value in identifiers if matches(ADVISORY, value))
     return results
 
 

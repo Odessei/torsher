@@ -9,6 +9,7 @@ import { findOwner } from '../users/index.ts'
 
 // Protocol compatibility baseline, independent of the Torsher release number.
 export const COMPATIBILITY_VERSION = '10.10.7'
+const AUTH_PARAMETER = /(?:^|[,\t ])(\w+)[\t ]*=[\t ]*"([^"\r\n]*)"/g
 
 export function serverId() {
   return getDb().transaction(() => {
@@ -27,7 +28,7 @@ export function authorizationFields(request: FastifyRequest) {
     const value = request.headers[name]
     if (typeof value !== 'string' || !/^(?:MediaBrowser|Emby)\s/i.test(value))
       continue
-    for (const match of value.matchAll(/(\w+)\s*=\s*"([^"\r\n]*)"/g))
+    for (const match of value.matchAll(AUTH_PARAMETER))
       result[match[1]!.toLowerCase()] = match[2]!
   }
   return result
@@ -52,8 +53,10 @@ export function facadeToken(request: FastifyRequest) {
         return undefined
       continue
     }
-    for (const match of value.matchAll(/\bToken\s*=\s*"([^"\r\n]*)"/gi))
-      tokens.push(match[1]!)
+    for (const match of value.matchAll(AUTH_PARAMETER)) {
+      if (match[1]!.toLowerCase() === 'token')
+        tokens.push(match[2]!)
+    }
   }
   const query = new URL(request.url, 'http://localhost').searchParams
   for (const [name, value] of query) {

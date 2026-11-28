@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from github_journal import check_fix, collect, incidents, ingest, validated_plan
+from github_journal import check_fix, clean_fix, collect, incidents, ingest, validated_plan
 
 REPO = "sample/project"
 CVE = "CVE-2026-999999"
@@ -77,6 +77,12 @@ class FixtureGitHub:
 
 
 class JournalTest(unittest.TestCase):
+    def test_all_alert_references_are_retained(self):
+        alert_keys = [f"{REPO}:code-scanning:11", f"{REPO}:dependabot:12"]
+        plan = {**plan_entry(), "keys": alert_keys, "kind": "secret-scanning", "number": 13}
+        cleaned = clean_fix({**plan, "ci": "pending", "checks": []}, [REPO])
+        self.assertEqual(set(cleaned["keys"]), {GHSA, *alert_keys, f"{REPO}:secret-scanning:13"})
+
     def test_redaction_and_advisory_correlation(self):
         api = FixtureGitHub()
         report = collect(api, [REPO], [plan_entry()])

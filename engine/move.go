@@ -828,7 +828,7 @@ func removePlaced(info *metainfo.Info, from, to string, placed []string) {
 		addParentDirs(dirs, to, pair.dst)
 	}
 
-	_ = removeEmptyDirs(dirs)
+	_ = removeEmptyDirs(dirs, os.Remove)
 }
 
 // Удаляет исходники, у которых есть файл в новом каталоге, и опустевшие
@@ -854,7 +854,7 @@ func removeSources(info *metainfo.Info, from, to string) error {
 		addParentDirs(dirs, from, src)
 	}
 
-	errs = append(errs, removeEmptyDirs(dirs))
+	errs = append(errs, removeEmptyDirs(dirs, os.Remove))
 
 	return errors.Join(errs...)
 }
